@@ -27,6 +27,7 @@
   --bldg:#C8CFD6; --room:#DCE4EC; --wc:#DAE8DA; --vert:#F2E2B8;
   --gate:#E8C48A; --shadow:rgba(20,39,61,.10);
   --on-route:#FFFFFF;
+  --ic-male:#1F5FC8; --ic-female:#D93A6A; --ic-wc:#1F5FC8; --ic-wc-fg:#FFFFFF;
   --v-tread:#CFE0FA; --v-riser:#7FA6E6; --v-side:#5C88D2; --v-edge:#1D4FAE;
   color-scheme:light;
 }
@@ -37,6 +38,7 @@
   --bldg:#38434F; --room:#2A3845; --wc:#2C4034; --vert:#453A20;
   --gate:#54401F; --shadow:rgba(0,0,0,.45);
   --on-route:#0B1624;
+  --ic-male:#6FA8FF; --ic-female:#FF7EA5; --ic-wc:#3F7FE6; --ic-wc-fg:#FFFFFF;
   --v-tread:#9CC8FF; --v-riser:#5A8FD6; --v-side:#3F6FB4; --v-edge:#0E2440;
   color-scheme:dark;
 }
@@ -121,6 +123,11 @@ body{background:var(--paper);color:var(--ink);
 .v-door{stroke:var(--panel);stroke-width:.8;opacity:.9}
 .rline,.m-route,.m-rise{filter:drop-shadow(0 0 1.3px var(--panel)) drop-shadow(0 0 .6px var(--panel))}
 .m-dest-t{fill:var(--mark)}
+.m-door{stroke:var(--panel);stroke-width:.9;stroke-linejoin:round}
+.m-door-bldg,.m-door-from{fill:var(--route)}
+.m-door-to{fill:var(--mark)}
+.m-door-tag rect{fill:var(--route);stroke:var(--panel);stroke-width:1}
+.m-door-tag text{font-family:'Noto Sans TC',sans-serif;font-size:7.5px;font-weight:900;fill:var(--on-route)}
 .m-dest-edge{fill:none;stroke:var(--mark);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
 .m-dest-s{fill:var(--mark);filter:brightness(.82)}
 .m-dest-e{fill:var(--mark);filter:brightness(.66)}
@@ -417,6 +424,20 @@ function makeRouter(D){
     rects.forEach(rc => ring(gk, rc, limit).forEach(k => s.add(k)));
     return s;
   };
+  /* 房間或場地的出入口格：緊貼它、而且那一邊沒有牆。
+     doorsOn 關掉時（最後手段）退回區塊四周任一格 */
+  let doorsOn = true;
+  function endCells(gk, rects, limit){
+    if(doorsOn){
+      for(const lim of [limit, null]){
+        const s = new Set();
+        rects.forEach(rc => doorRing(gk, rc, lim).forEach(k => s.add(k)));
+        if(s.size) return s;
+      }
+    }
+    const s = ringAll(gk, rects, limit);
+    return s.size ? s : ringAll(gk, rects, null);
+  }
   function ownCells(rects){
     const s = new Set();
     for(const [name, cells] of Object.entries(BUILD)){
@@ -474,8 +495,7 @@ function makeRouter(D){
       if(bk !== null) return new Set([bk]);
     }
     const own = from.grid === D.baseGrid ? null : ownCells(from.rects);
-    const s = ringAll(from.grid, from.rects, own);
-    return s.size ? s : ringAll(from.grid, from.rects, null);
+    return endCells(from.grid, from.rects, own);
   }
 
   /* 主函數：from 與 to 都是 {grid, rects}，to 另外帶 place 資訊 */
@@ -499,14 +519,16 @@ function makeRouter(D){
   /* 主函數：先照一般方式找；找不到就改走別的樓層繞過去（上下樓兩次）；
      還是找不到，才允許穿過「不可穿過」的地點 */
   function route(from, to, mode){
-    banOn = true;
-    let r = routeCore(from, to, mode);
-    if(!r) r = twoHop(from, to, mode);
-    if(!r && mode !== 'lift' && Object.keys(NO_THRU).length){   // 搭電梯找不到就讓頁面改用標準路線
-      banOn = false;
-      r = routeCore(from, to, mode);
-      banOn = true;
+    /* 依序放寬：從出入口進出＋不穿過 → 換樓層繞 → 不限出入口 → 允許穿過（搭電梯不做這步） */
+    const tries = [[true, true, false], [true, true, true], [false, true, false], [false, true, true]];
+    if(mode !== 'lift' && Object.keys(NO_THRU).length) tries.push([true, false, false], [false, false, false]);
+    let r = null;
+    for(const [d, b, two] of tries){
+      doorsOn = d; banOn = b;
+      r = two ? twoHop(from, to, mode) : routeCore(from, to, mode);
+      if(r) break;
     }
+    doorsOn = true; banOn = true;
     return r;
   }
 
@@ -519,8 +541,7 @@ function makeRouter(D){
     const shafts = gk => new Map(vertsOf(gk).map(b => [pos(b), b]));
     const vA = shafts(A), vB = shafts(B);
     const cells = ownCells(to.rects), cellSet = cells.size ? cells : null;
-    let goals = ringAll(B, to.rects, cellSet);
-    if(!goals.size) goals = ringAll(B, to.rects, null);
+    const goals = endCells(B, to.rects, cellSet);
     let lim2 = INDOOR;
     { let ok = false; goals.forEach(k => { if(lim2.has(k)) ok = true; }); if(!ok) lim2 = null; }
     const banA = banFor(A, from, to), banB = banFor(B, from, to);
@@ -590,8 +611,7 @@ function makeRouter(D){
         return {legs:[{grid:from.grid, path:[here]}], via:null, same:true};
       }
       const lim = from.grid === D.baseGrid ? null : INDOOR;
-      let goals = ringAll(to.grid, to.rects, cellSet);
-      if(!goals.size) goals = ringAll(to.grid, to.rects, null);
+      const goals = endCells(to.grid, to.rects, cellSet);
       const path = dijkstra(from.grid, startCells(from), goals, lim, avoid, banFor(from.grid, from, to));
       if(!path) return null;
       return {legs:[{grid:from.grid, path}], via:null, vias:[], verts:[]};
@@ -646,8 +666,7 @@ function makeRouter(D){
         });
         s2 = new Set([bk]);
       }
-      let goals2 = ringAll(to.grid, to.rects, cellSet);
-      if(!goals2.size) goals2 = ringAll(to.grid, to.rects, null);
+      const goals2 = endCells(to.grid, to.rects, cellSet);
       // 目的地若在戶外（活動中心、圖書館、校門口），第二段就不能限制在室內
       let lim2 = limit2;
       if(lim2){ let ok = false; goals2.forEach(k=>{ if(lim2.has(k)) ok = true; }); if(!ok) lim2 = null; }
@@ -664,7 +683,7 @@ function makeRouter(D){
             via:best.kind, vias:[best.kind], verts:[vertInfo(best.v)]};
   }
 
-  return {route, G, BUILD, INDOOR, floorOfGrid};
+  return {route, G, BUILD, INDOOR, floorOfGrid, pass};
 }
 
 
@@ -716,8 +735,45 @@ const FILL = {bldg:'var(--bldg)', room:'var(--room)', wc:'var(--wc)', vert:'var(
               gate:'var(--gate)', outer:'var(--field)', blank:'var(--field)'};
 
 
+/* 出入口：路線端點緊貼房間、而且沒有牆的那一側。
+   回傳門那一段邊的兩個端點（格線座標 [r,c]），沿牆面往兩側各多延伸最多 2 格 */
+function doorEdge(gridKey, cell, rects){
+  const g = R.G[gridKey];
+  if(!g || !cell || !rects) return null;
+  const inR = (r, c) => rects.some(([a1,b1,a2,b2]) => r >= a1 && r <= a2 && c >= b1 && c <= b2);
+  const open = (r, c, dr, dc) => !g.occ.has((r << 8) | c) && inR(r + dr, c + dc) && R.pass(g, r, c, dr, dc);
+  const [r, c] = cell;
+  for(const [dr, dc] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    if(!open(r, c, dr, dc)) continue;
+    const [ar, ac] = dr ? [0, 1] : [1, 0];          // 沿牆面的方向
+    let lo = 0, hi = 0;
+    while(lo < 2 && open(r - ar*(lo+1), c - ac*(lo+1), dr, dc)) lo++;
+    while(hi < 2 && open(r + ar*(hi+1), c + ac*(hi+1), dr, dc)) hi++;
+    return edgeOf(r, c, dr, dc, lo, hi);
+  }
+  return null;
+}
+function edgeOf(r, c, dr, dc, lo, hi){
+  if(dr === 1)  return [[r+1, c-lo], [r+1, c+hi+1]];
+  if(dr === -1) return [[r,   c-lo], [r,   c+hi+1]];
+  if(dc === 1)  return [[r-lo, c+1], [r+hi+1, c+1]];
+  return [[r-lo, c], [r+hi+1, c]];
+}
+/* 走進／走出大樓的位置（只看 1F＋戶外那張圖）：室內外交界的那一段邊 */
+function buildingDoors(leg){
+  if(leg.grid !== D.baseGrid) return [];
+  const out = [], K = (r, c) => (r << 8) | c;
+  for(let i = 1; i < leg.path.length; i++){
+    const [pr, pc] = leg.path[i-1], [r, c] = leg.path[i];
+    const a = R.INDOOR.has(K(pr, pc)), b = R.INDOOR.has(K(r, c));
+    if(a === b) continue;
+    out.push({edge: edgeOf(pr, pc, r - pr, c - pc, 0, 0), enter: !a && b});
+  }
+  return out;
+}
+
 /* 依路線裁切出 viewBox，並畫圖；縱長的樓層圖自動轉 90 度 */
-function drawMap(gridKey, path, target){
+function drawMap(gridKey, path, target, startPlace){
   const d = MAPS[gridKey];
   let r1 = Infinity, c1 = Infinity, r2 = -1, c2 = -1;
   const touch = ([r,c]) => { r1=Math.min(r1,r); c1=Math.min(c1,c); r2=Math.max(r2,r); c2=Math.max(c2,c); };
@@ -780,8 +836,14 @@ function drawMap(gridKey, path, target){
     if(ik){
       const size = Math.min(w, h) * 0.66;
       const sc = size / 24;
+      /* 常見配色：男廁藍、女廁紅、無障礙是藍底白色輪椅 */
+      const col = ik === 'male' ? 'var(--ic-male)' : ik === 'female' ? 'var(--ic-female)'
+                : ik === 'wc' ? 'var(--ic-wc-fg)' : 'var(--ink-soft)';
+      const badge = ik === 'wc' ? '<rect x="-1" y="-1" width="26" height="26" rx="4.5" fill="var(--ic-wc)"/>' : '';
+      const icon = ik === 'wc'
+        ? `<g transform="translate(2.4,2.2) scale(.8)">${ICONS.wc.replace(/CUR/g, col)}</g>` : ICONS[ik].replace(/CUR/g, col);
       parts.push(`<g transform="translate(${(x+w/2-size/2).toFixed(1)},${(y+h/2-size/2).toFixed(1)}) scale(${sc.toFixed(3)})"
-        opacity=".8">${ICONS[ik].replace(/CUR/g, 'var(--ink-soft)')}</g>`);
+        ${/male|female|wc/.test(ik) ? '' : 'opacity=".8"'}>${badge}${icon}</g>`);
       return;
     }
 
@@ -854,6 +916,20 @@ function drawMap(gridKey, path, target){
     parts.push(dot(path[0], 'var(--ink)', false));
   }
   parts.push(dot(path[path.length-1], 'var(--mark)', true));
+  /* 出發和抵達的房間出入口：在沒有牆的那一側畫一段彩色門線 */
+  const doorLine = (edge, col) => {
+    if(!edge) return;
+    const [[ra, ca], [rb, cb]] = edge;
+    const xy = (rr, cc) => [((cc - c1) * CELL).toFixed(1), ((rr - r1) * CELL).toFixed(1)];
+    const [x1, y1] = xy(ra, ca), [x2, y2] = xy(rb, cb);
+    const wd = Math.max(3, CELL * 0.42);
+    parts.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--panel)" stroke-width="${(wd + 3).toFixed(1)}" stroke-linecap="round"></line>
+      <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${wd.toFixed(1)}" stroke-linecap="round" class="doorline"></line>`);
+  };
+  {
+    if(startPlace) doorLine(doorEdge(gridKey, path[0], startPlace.rects), 'var(--route)');
+    if(target)     doorLine(doorEdge(gridKey, path[path.length-1], target.rects), 'var(--mark)');
+  }
 
 
   const note = '';
@@ -1170,7 +1246,7 @@ function polysOverlap(A, B){
   return true;
 }
 
-function drawMassing(legs, target, vinfo){
+function drawMassing(legs, target, vinfo, fromPlace){
   const base = MAPS[D.baseGrid];
   const CELL = 4.6, ZS = CELL * 2.7;              // 格寬、每層高（像素）
   const R0 = 1, C0 = 1, R1 = base.maxr, C1 = base.maxc;
@@ -1394,6 +1470,36 @@ function drawMassing(legs, target, vinfo){
     const at = over.findIndex(x => x.indexOf('class="pulse"') >= 0);
     if(at >= 0) over.splice(at, 0, shaft); else over.push(shaft);
   });
+  /* 出入口：房間的門（抵達紅、出發藍），以及走進／走出大樓的位置加上「入口／出口」標籤 */
+  const doorSvg = [];
+  const door = (edge, z, cls, label) => {
+    if(!edge) return;
+    const [[ra, ca], [rb, cb]] = edge, h = 0.72;
+    const q = [[ra,ca,z],[rb,cb,z],[rb,cb,z+h],[ra,ca,z+h]].map(p => P(...p).map(v => v.toFixed(1)).join(',')).join(' ');
+    doorSvg.push(`<polygon points="${q}" class="m-door ${cls}"></polygon>`);
+    if(label){
+      const [lx, ly] = P((ra + rb) / 2, (ca + cb) / 2, z + h);
+      const w = 25, hh = 12;
+      doorSvg.push(`<g class="m-door-tag"><rect x="${(lx - w/2).toFixed(1)}" y="${(ly - hh - 3).toFixed(1)}" width="${w}" height="${hh}" rx="6"></rect>
+        <text x="${lx.toFixed(1)}" y="${(ly - 3 - hh/2).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${label}</text></g>`);
+    }
+  };
+  legs.forEach(leg => {
+    const z = (D.gridFloor[leg.grid] || 1) - 1;
+    buildingDoors(leg).forEach(d => door(d.edge, z, 'm-door-bldg', d.enter ? '入口' : '出口'));
+  });
+  if(fromPlace){
+    door(doorEdge(legs[0].grid, legs[0].path[0], fromPlace.rects), (D.gridFloor[legs[0].grid] || 1) - 1, 'm-door-from');
+  }
+  const lastLeg = legs[legs.length - 1];
+  if(target){
+    door(doorEdge(lastLeg.grid, lastLeg.path[lastLeg.path.length - 1], target.rects), (target.floor || 1) - 1, 'm-door-to');
+  }
+  if(doorSvg.length){
+    const at = over.findIndex(x => x.indexOf('class="pulse"') >= 0);
+    if(at >= 0) over.splice(at, 0, doorSvg.join('')); else over.push(doorSvg.join(''));
+  }
+
   const fp = legs[0].path[0], zf0 = (D.gridFloor[legs[0].grid] || 1) - 1;
   const [sx,sy] = P(fp[0]+0.5, fp[1]+0.5, zf0);
   over.push(`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="5.5" fill="var(--ink)" stroke="var(--panel)" stroke-width="2.2"></circle>`);
@@ -1591,7 +1697,7 @@ function render(){
           <span class="stage-n">路線</span>
           <span class="stage-t">${f.name} → ${t.name}</span>
         </div>
-        ${drawMassing(Rt.legs, t, Rt.verts)}
+        ${drawMassing(Rt.legs, t, Rt.verts, (f.gate || Rt.same) ? null : f)}
       </section>`);
     for(let i = 0; i + 1 < Rt.legs.length; i++){
       blocks.push(vstepHTML(Rt, i, Rt.legs.length > 2 ? '中途 ' + (i+1) : '中途'));
@@ -1620,7 +1726,7 @@ function render(){
           <span class="stage-n">${tag}</span>
           <span class="stage-t">${title}</span>
         </div>
-        ${drawMap(leg.grid, leg.path, last ? t : null)}
+        ${drawMap(leg.grid, leg.path, last ? t : null, (i === 0 && !f.gate && !Rt.same) ? f : null)}
       </section>`);
     if(!last){
       no++;
