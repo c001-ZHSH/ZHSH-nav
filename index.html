@@ -23,7 +23,7 @@
 
 :root{
   --ink:#14273D; --ink-soft:#4A5B71; --paper:#F6F3ED; --panel:#FFFFFF;
-  --line:#DCD5C8; --field:#EDE7DB; --route:#1D5FD6; --mark:#BE3A2B;
+  --line:#DCD5C8; --field:#EDE7DB; --route:#1D5FD6; --route-in:#7FA8EC; --mark:#BE3A2B;
   --bldg:#C8CFD6; --room:#DCE4EC; --wc:#DAE8DA; --vert:#F2E2B8;
   --gate:#E8C48A; --shadow:rgba(20,39,61,.10);
   --on-route:#FFFFFF;
@@ -34,7 +34,7 @@
 /* 深色模式：由頁面右上角按鈕切換（class 加在 <html> 上） */
 :root.theme-dark{
   --ink:#E7E3DA; --ink-soft:#9AA6B4; --paper:#111A24; --panel:#18232F;
-  --line:#2C3A48; --field:#1B2731; --route:#5EA8FF; --mark:#F0685A;
+  --line:#2C3A48; --field:#1B2731; --route:#5EA8FF; --route-in:#2F5E9E; --mark:#F0685A;
   --bldg:#38434F; --room:#2A3845; --wc:#2C4034; --vert:#453A20;
   --gate:#54401F; --shadow:rgba(0,0,0,.45);
   --on-route:#0B1624;
@@ -92,6 +92,7 @@ body{background:var(--paper);color:var(--ink);
 .m-name-tgt{fill:var(--mark);font-weight:900;stroke:var(--m-tgt-top)}
 .m-floors{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
   fill:var(--ink-soft);opacity:.75}
+.m-route.m-route-in{stroke:var(--route-in)}
 .m-route{fill:none;stroke:var(--route);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
 .m-rise{stroke:var(--route);stroke-width:3.4;stroke-dasharray:4 3;stroke-linecap:round}
 /* 擋在目的地前面的大樓：面變半透明，但外框線保留，還看得出建築輪廓 */
@@ -125,7 +126,6 @@ body{background:var(--paper);color:var(--ink);
 .m-dest-t{fill:var(--mark)}
 .m-door{stroke:var(--panel);stroke-width:.9;stroke-linejoin:round}
 .m-door-bldg,.m-door-from{fill:var(--route)}
-.m-door-to{fill:var(--mark)}
 .m-door-tag rect{fill:var(--route);stroke:var(--panel);stroke-width:1}
 .m-door-tag text{font-family:'Noto Sans TC',sans-serif;font-size:7.5px;font-weight:900;fill:var(--on-route)}
 .m-dest-edge{fill:none;stroke:var(--mark);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
@@ -762,14 +762,35 @@ function edgeOf(r, c, dr, dc, lo, hi){
 /* 走進／走出大樓的位置（只看 1F＋戶外那張圖）：室內外交界的那一段邊 */
 function buildingDoors(leg){
   if(leg.grid !== D.baseGrid) return [];
-  const out = [], K = (r, c) => (r << 8) | c;
+  const g = R.G[leg.grid], out = [], K = (r, c) => (r << 8) | c;
   for(let i = 1; i < leg.path.length; i++){
     const [pr, pc] = leg.path[i-1], [r, c] = leg.path[i];
     const a = R.INDOOR.has(K(pr, pc)), b = R.INDOOR.has(K(r, c));
     if(a === b) continue;
-    out.push({edge: edgeOf(pr, pc, r - pr, c - pc, 0, 0), enter: !a && b});
+    /* 以戶外那一格為基準，沿牆面往兩側延伸：同樣是戶外、沒牆、對面是室內 */
+    const [or, oc, dr, dc] = a ? [r, c, pr - r, pc - c] : [pr, pc, r - pr, c - pc];
+    const open = (rr, cc) => !g.occ.has(K(rr, cc)) && !R.INDOOR.has(K(rr, cc))
+      && R.INDOOR.has(K(rr + dr, cc + dc)) && R.pass(g, rr, cc, dr, dc);
+    const [ar, ac] = dr ? [0, 1] : [1, 0];
+    let lo = 0, hi = 0;
+    while(lo < 2 && open(or - ar*(lo+1), oc - ac*(lo+1))) lo++;
+    while(hi < 2 && open(or + ar*(hi+1), oc + ac*(hi+1))) hi++;
+    out.push({edge: edgeOf(or, oc, dr, dc, lo, hi), enter: !a && b, out: [or, oc], dr, dc});
   }
   return out;
+}
+/* 把一段路線切成「戶外」與「建築物內」幾小段，室內用淺一點的顏色 */
+function routeRuns(gridKey, path){
+  const K = (r, c) => (r << 8) | c;
+  const inside = ([r, c]) => gridKey !== D.baseGrid || R.INDOOR.has(K(r, c));
+  const runs = [];
+  for(let i = 1; i < path.length; i++){
+    const indoor = inside(path[i-1]) && inside(path[i]);
+    const last = runs[runs.length - 1];
+    if(last && last.indoor === indoor) last.cells.push(path[i]);
+    else runs.push({indoor, cells: [path[i-1], path[i]]});
+  }
+  return runs;
 }
 
 /* 依路線裁切出 viewBox，並畫圖；縱長的樓層圖自動轉 90 度 */
@@ -888,12 +909,12 @@ function drawMap(gridKey, path, target, startPlace){
 
   // 破折虛線（可通過的區隔）和點虛線（入口）只給程式判斷，畫出來反而像牆
 
-  if(path.length > 1){
-    const pts = path.map(([r,c])=>mid(r,c).map(v=>v.toFixed(1)).join(',')).join(' ');
-    parts.push(`<polyline points="${pts}" fill="none" stroke="var(--route)"
+  routeRuns(gridKey, path).forEach(run => {
+    const pts = run.cells.map(([r,c])=>mid(r,c).map(v=>v.toFixed(1)).join(',')).join(' ');
+    parts.push(`<polyline points="${pts}" fill="none" stroke="${run.indoor ? 'var(--route-in)' : 'var(--route)'}"
       stroke-width="${Math.max(3, CELL*0.42).toFixed(1)}"
       stroke-linecap="round" stroke-linejoin="round" class="rline"></polyline>`);
-  }
+  });
   const rad = Math.max(4, CELL*0.42);
   const dot = ([r,c], fill, ring) => {
     const [x,y] = mid(r,c);
@@ -926,10 +947,22 @@ function drawMap(gridKey, path, target, startPlace){
     parts.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--panel)" stroke-width="${(wd + 3).toFixed(1)}" stroke-linecap="round"></line>
       <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}" stroke-width="${wd.toFixed(1)}" stroke-linecap="round" class="doorline"></line>`);
   };
-  {
-    if(startPlace) doorLine(doorEdge(gridKey, path[0], startPlace.rects), 'var(--route)');
-    if(target)     doorLine(doorEdge(gridKey, path[path.length-1], target.rects), 'var(--mark)');
-  }
+  if(startPlace) doorLine(doorEdge(gridKey, path[0], startPlace.rects), 'var(--route)');
+  /* 走進／走出建築物的出入口：門線加「入口／出口」標籤，標籤放在戶外那一側 */
+  buildingDoors({grid: gridKey, path}).forEach(d => {
+    doorLine(d.edge, 'var(--route)');
+    const [[ra, ca], [rb, cb]] = d.edge;
+    const fs = Math.max(10, CELL * 1.4), w = fs * 2.6, h = fs * 1.45;
+    /* 標籤放在門的旁邊（沿著牆面、戶外那一側），才不會壓在路線上 */
+    const along = d.dr ? [1, 0] : [0, 1];                       // 螢幕上沿牆面的方向 [x, y]
+    const ex = (cb - c1) * CELL, ey = (rb - r1) * CELL;          // 門線的後端點
+    const cx = ex + along[0] * (w / 2 + 3) - d.dc * (h * 0.7);
+    const cy = ey + along[1] * (h / 2 + 3) - d.dr * (h * 0.7);
+    parts.push(`<g class="doortag"><rect x="${(cx - w/2).toFixed(1)}" y="${(cy - h/2).toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}"
+      rx="${(h/2).toFixed(1)}" fill="var(--route)" stroke="var(--panel)" stroke-width="1.5"></rect>
+      <text x="${cx.toFixed(1)}" y="${cy.toFixed(1)}" text-anchor="middle" dominant-baseline="central"
+      font-family="'Noto Sans TC',sans-serif" font-size="${fs.toFixed(1)}" font-weight="900" fill="var(--on-route)">${d.enter ? '入口' : '出口'}</text></g>`);
+  });
 
 
   const note = '';
@@ -1418,8 +1451,10 @@ function drawMassing(legs, target, vinfo, fromPlace){
   const over = [];
   legs.forEach((leg, i)=>{
     const z = (D.gridFloor[leg.grid] || 1) - 1;
-    const pts = leg.path.map(([r,c]) => P(r+0.5, c+0.5, z).map(v=>v.toFixed(1)).join(',')).join(' ');
-    over.push(`<polyline points="${pts}" class="m-route rline"></polyline>`);
+    routeRuns(leg.grid, leg.path).forEach(run => {
+      const pts = run.cells.map(([r,c]) => P(r+0.5, c+0.5, z).map(v=>v.toFixed(1)).join(',')).join(' ');
+      over.push(`<polyline points="${pts}" class="m-route rline${run.indoor ? ' m-route-in' : ''}"></polyline>`);
+    });
     if(i > 0 && vertList[i-1]){
       /* 樓梯間／電梯井在目的地方塊之後才畫，才不會被紅色蓋住 */
     } else if(i > 0){
@@ -1490,10 +1525,6 @@ function drawMassing(legs, target, vinfo, fromPlace){
   });
   if(fromPlace){
     door(doorEdge(legs[0].grid, legs[0].path[0], fromPlace.rects), (D.gridFloor[legs[0].grid] || 1) - 1, 'm-door-from');
-  }
-  const lastLeg = legs[legs.length - 1];
-  if(target){
-    door(doorEdge(lastLeg.grid, lastLeg.path[lastLeg.path.length - 1], target.rects), (target.floor || 1) - 1, 'm-door-to');
   }
   if(doorSvg.length){
     const at = over.findIndex(x => x.indexOf('class="pulse"') >= 0);
