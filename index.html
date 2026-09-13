@@ -1,0 +1,1574 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#F6F3ED">
+<meta name="description" content="選擇出發點與目的地，查看在中和高中校內怎麼走到教室與處室。">
+<meta property="og:title" content="中和高中校內導航">
+<meta property="og:description" content="選擇出發點與目的地，查看在中和高中校內怎麼走到教室與處室。">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Barlow+Condensed:wght@600;700&display=swap">
+<title>中和高中校內導航</title>
+<style>
+  :root{color-scheme:light}
+  html,body{margin:0}
+  body{font:14px/1.5 system-ui,sans-serif}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+</style>
+</head>
+<body>
+<style>
+
+:root{
+  --ink:#14273D; --ink-soft:#4A5B71; --paper:#F6F3ED; --panel:#FFFFFF;
+  --line:#DCD5C8; --field:#EDE7DB; --route:#1D5FD6; --mark:#BE3A2B;
+  --bldg:#C8CFD6; --room:#DCE4EC; --wc:#DAE8DA; --vert:#F2E2B8;
+  --gate:#E8C48A; --shadow:rgba(20,39,61,.10);
+  --on-route:#FFFFFF;
+  --v-tread:#CFE0FA; --v-riser:#7FA6E6; --v-side:#5C88D2; --v-edge:#1D4FAE;
+  color-scheme:light;
+}
+/* 深色模式：由頁面右上角按鈕切換（class 加在 <html> 上） */
+:root.theme-dark{
+  --ink:#E7E3DA; --ink-soft:#9AA6B4; --paper:#111A24; --panel:#18232F;
+  --line:#2C3A48; --field:#1B2731; --route:#5EA8FF; --mark:#F0685A;
+  --bldg:#38434F; --room:#2A3845; --wc:#2C4034; --vert:#453A20;
+  --gate:#54401F; --shadow:rgba(0,0,0,.45);
+  --on-route:#0B1624;
+  --v-tread:#9CC8FF; --v-riser:#5A8FD6; --v-side:#3F6FB4; --v-edge:#0E2440;
+  color-scheme:dark;
+}
+body{background:var(--paper);color:var(--ink);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  font-size:16px;line-height:1.6;-webkit-text-size-adjust:100%}
+*{box-sizing:border-box}
+.wrap{max-width:460px;margin:0 auto;padding:0 0 56px}
+.demo-bar{background:#5C7C8A;color:#fff;font-size:13px;line-height:1.5;
+  padding:9px 18px;text-align:center}
+.demo-bar b{font-weight:700}
+.masthead{padding:12px 18px 10px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.school{font-size:10.5px;font-weight:700;letter-spacing:.14em;color:var(--ink-soft);order:2}
+.occasion{font-size:19px;font-weight:900;margin:0;order:1}
+.themebtn{order:3;margin-left:auto;align-self:center;display:inline-flex;align-items:center;gap:5px;
+  font-family:inherit;font-size:12px;font-weight:700;color:var(--ink-soft);cursor:pointer;
+  background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:3px 10px 3px 8px}
+.themebtn svg{width:14px;height:14px}
+.themebtn:focus-visible{outline:2px solid var(--route);outline-offset:2px}
+.occasion .sub{font-size:14px;font-weight:500;color:var(--ink-soft);margin-left:8px}
+.origin button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.sec-label .no{width:23px;height:23px;border-radius:50%;background:var(--ink);
+  color:var(--paper);display:grid;place-items:center;
+  font-family:"Barlow Condensed",sans-serif;font-size:15px;font-weight:700}
+/* ── 建築量體：頂面亮、南面中、東面暗，模擬左上方來的光 ── */
+:root{
+  --m-ground:#E9E4D9; --m-top:#FBFAF6; --m-south:#DAD4C8; --m-east:#C3BCAE;
+  --m-edge:#8D877B;   --m-line:#B3AC9E;
+  --m-tgt-top:#FCE8CC; --m-tgt-south:#F1D2A6; --m-tgt-east:#DFBA88;
+  --m-road:#BAB5AC; --m-road-line:#FFFFFF; --m-road-text:#FFFFFF; --m-plaza:#F4EFE4;
+}
+:root.theme-dark{
+  --m-ground:#18222C; --m-top:#3B4756; --m-south:#2D3946; --m-east:#232E3A;
+  --m-edge:#5A6A7E;   --m-line:#475669;
+  --m-tgt-top:#5C4727; --m-tgt-south:#4A3920; --m-tgt-east:#3A2D19;
+  --m-road:#0C131A; --m-road-line:#5E6E80; --m-road-text:#7F8EA0; --m-plaza:#243241;
+}
+.m-ground{fill:var(--m-ground)}
+.m-top{stroke:none}
+.m-side{stroke:var(--m-edge);stroke-width:.6;stroke-linejoin:round}
+.m-roofline{fill:none;stroke:var(--m-edge);stroke-width:.9;stroke-linecap:round}
+.m-top.m-std{fill:var(--m-top)}
+.m-south.m-std{fill:var(--m-south)}
+.m-east.m-std{fill:var(--m-east)}
+.m-top.m-tgt{fill:var(--m-tgt-top)}
+.m-south.m-tgt{fill:var(--m-tgt-south)}
+.m-east.m-tgt{fill:var(--m-tgt-east)}
+.m-floorline{stroke:var(--m-line);stroke-width:.6}
+.m-name{font-family:'Noto Sans TC',sans-serif;font-size:13px;font-weight:700;
+  fill:var(--ink-soft);paint-order:stroke;stroke:var(--m-top);stroke-width:3px}
+.m-name-tgt{fill:var(--mark);font-weight:900;stroke:var(--m-tgt-top)}
+.m-floors{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;
+  fill:var(--ink-soft);opacity:.75}
+.m-route{fill:none;stroke:var(--route);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
+.m-rise{stroke:var(--route);stroke-width:3.4;stroke-dasharray:4 3;stroke-linecap:round}
+/* 擋在目的地前面的大樓：面變半透明，但外框線保留，還看得出建築輪廓 */
+.m-ghost polygon{fill-opacity:.45}
+.m-ghost .m-side{stroke-width:.9}
+.m-ghost .m-roofline{stroke-width:1.2}
+.m-ghost .m-floorline{opacity:.55}
+.m-road{fill:var(--m-road)}
+.m-road-edge{stroke:var(--m-road-line);stroke-width:1;opacity:.8}
+.m-road-mid{stroke:var(--m-road-line);stroke-width:1.2;stroke-dasharray:9 7}
+.m-road-name{font-family:'Noto Sans TC',sans-serif;font-size:15px;font-weight:900;letter-spacing:.5em;fill:var(--m-road-text)}
+.m-plaza{fill:var(--m-plaza);stroke:var(--m-edge);stroke-width:.6;stroke-dasharray:3 2}
+.m-top.m-gate{fill:var(--m-top)}
+.m-south.m-gate{fill:var(--m-south)}
+.m-east.m-gate{fill:var(--m-east)}
+/* 樓梯間、電梯井 */
+.v-floor{fill:var(--route);fill-opacity:.10}
+.v-back{stroke:var(--route);stroke-width:.8;stroke-dasharray:2 2;opacity:.55}
+.v-level{fill:none;stroke:var(--route);stroke-width:.7;opacity:.45}
+.v-glass{fill:var(--route);fill-opacity:.07;stroke:var(--route);stroke-width:1;stroke-opacity:.75;stroke-linejoin:round}
+.v-glass-top{fill:var(--route);fill-opacity:.05;stroke:var(--route);stroke-width:1;stroke-opacity:.75;stroke-linejoin:round}
+.v-step,.v-landing,.v-car{stroke:var(--v-edge);stroke-width:.45;stroke-linejoin:round}
+.v-step.v-top,.v-landing.v-top{fill:var(--v-tread)}
+.v-step.v-south,.v-landing.v-south{fill:var(--v-riser)}
+.v-step.v-east,.v-landing.v-east{fill:var(--v-side)}
+.v-car.v-top{fill:var(--route)}
+.v-car.v-south{fill:var(--route);filter:brightness(.8)}
+.v-car.v-east{fill:var(--route);filter:brightness(.62)}
+.v-door{stroke:var(--panel);stroke-width:.8;opacity:.9}
+.rline,.m-route,.m-rise{filter:drop-shadow(0 0 1.3px var(--panel)) drop-shadow(0 0 .6px var(--panel))}
+.m-dest-t{fill:var(--mark)}
+.m-dest-edge{fill:none;stroke:var(--mark);stroke-width:1.4;stroke-linejoin:round;stroke-linecap:round}
+.m-dest-s{fill:var(--mark);filter:brightness(.82)}
+.m-dest-e{fill:var(--mark);filter:brightness(.66)}
+.routehead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  padding:11px 14px;background:var(--field);border-radius:11px;font-size:15px}
+.routehead .rh-lb{font-size:11px;font-weight:700;letter-spacing:.12em;
+  color:var(--ink-soft);opacity:.8}
+.routehead .rh-from{font-weight:700;color:var(--ink)}
+.routehead .rh-ar{color:var(--route);font-weight:900;font-size:17px}
+.routehead .rh-to{font-weight:900;color:var(--mark)}
+.search{padding:0 18px;display:flex;flex-direction:column;gap:10px}
+.suggest .n{font-weight:700}
+.suggest .l{font-size:13px;color:var(--ink-soft);white-space:nowrap}
+.viewctl{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:2px 18px 0;padding:0}
+.ctlrow{display:flex;align-items:center;gap:4px}
+.viewctl button:disabled{opacity:.34;cursor:default}
+.viewctl .vl{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--ink-soft);margin-right:3px;white-space:nowrap}
+.viewctl button{font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  border:1px solid var(--line);border-radius:7px;padding:4px 9px;line-height:1.4;
+  background:transparent;color:var(--ink-soft);white-space:nowrap}
+.viewctl button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.viewctl button:focus-visible{outline:2px solid var(--route);outline-offset:2px}
+.viewctl .spin{margin-left:auto;font-family:"Barlow Condensed",sans-serif;font-size:15px}
+.result{padding:12px 18px 0;display:flex;flex-direction:column;gap:10px}
+.dest{display:flex;gap:11px;border-left:4px solid var(--mark);padding-left:11px;align-items:center}
+.dest-num{font-family:"Barlow Condensed",sans-serif;font-size:38px;font-weight:700;
+  line-height:.9;color:var(--mark);font-variant-numeric:tabular-nums}
+.dest-txt{display:flex;flex-direction:column;gap:1px}
+.dest-name{font-size:17px;font-weight:900;line-height:1.2}
+.dest-where{font-size:12.5px;font-weight:500;color:var(--ink-soft)}
+.vstep{display:flex;align-items:center;gap:9px;padding:9px 12px;
+  background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--route);
+  border-radius:10px}
+.vstep svg{width:20px;height:20px;color:var(--route);flex-shrink:0}
+.vstep .vtext{font-size:15px;font-weight:700}
+.vstep .vtext b{font-size:17px;font-weight:900;color:var(--route)}
+.stage{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  overflow:hidden;box-shadow:0 1px 3px var(--shadow)}
+.stage-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 11px;border-bottom:1px solid var(--line)}
+.stage-n{font-family:"Barlow Condensed",sans-serif;font-size:12px;font-weight:700;
+  letter-spacing:.12em;color:var(--route)}
+.stage-t{font-size:12.5px;font-weight:700;flex:1 1 auto;min-width:0;text-align:right;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.zoombtn{font-family:inherit;font-size:11.5px;font-weight:700;white-space:nowrap;
+  color:var(--ink);background:transparent;border:1px solid var(--line);
+  border-radius:6px;padding:3px 8px;cursor:pointer}
+.zoombtn.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.zoombtn:focus-visible{outline:2px solid var(--route);outline-offset:2px}
+.mapbox{display:flex;justify-content:center;background:var(--field);
+  overflow:auto;-webkit-overflow-scrolling:touch}
+.mapbox svg{max-width:100%;max-height:56vh;width:auto;height:auto}
+.mapbox.zoom svg{max-width:none;max-height:none;width:200%;height:auto}
+.stage svg{display:block}
+.steps .d{font-family:"Barlow Condensed",sans-serif;font-size:14px;font-weight:700;
+  width:25px;height:25px;border-radius:50%;display:grid;place-items:center;
+  background:var(--route);color:var(--on-route);margin-top:1px}
+.steps li:last-child .d{background:var(--mark);color:#fff}
+.steps .t{font-size:15.5px;line-height:1.55}
+.steps .t em{font-style:normal;font-weight:700}
+.desthi{fill-opacity:.42}
+@media (prefers-reduced-motion:no-preference){
+  .desthi{animation:destpulse 1.7s ease-in-out infinite}
+@keyframes destpulse{0%,100%{fill-opacity:.20}
+50%{fill-opacity:.60}
+}
+.rline{stroke-dasharray:7 6;animation:flow 1.15s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-13}
+}
+.pulse{animation:pulse 1.9s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.28;r:11}
+50%{opacity:0;r:20}
+}
+}
+/* ── 出發點／目的地，兩塊格式完全一樣 ── */
+.picker{margin:0 18px 8px;padding:9px 11px 10px;background:var(--panel);
+  border:1px solid var(--line);border-radius:11px;
+  display:flex;flex-direction:column;gap:7px;min-width:0;overflow:hidden}
+.picker .phead{display:flex;align-items:center;gap:7px;min-height:20px}
+.picker .pno{width:18px;height:18px;border-radius:50%;background:var(--ink);color:var(--paper);
+  display:grid;place-items:center;font-family:"Barlow Condensed",sans-serif;
+  font-size:12px;font-weight:700;flex-shrink:0}
+.picker .ptitle{font-size:13.5px;font-weight:900;white-space:nowrap}
+.picker .pnow{margin-left:auto;font-size:13px;font-weight:700;color:var(--route);
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pfield{position:relative;display:flex;width:100%;min-width:0}
+.pfield input{flex:1 1 auto;min-width:0;width:100%;
+  font-family:inherit;font-size:16px;font-weight:500;color:var(--ink);
+  background:var(--field);border:1.5px solid var(--line);border-radius:9px;
+  padding:7px 11px 7px 33px;outline:none;line-height:1.3}
+.pfield input::placeholder{color:var(--ink-soft);font-weight:400}
+.pfield input:focus{border-color:var(--route);background:var(--panel)}
+.pfield svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);
+  width:15px;height:15px;color:var(--ink-soft);pointer-events:none}
+.pchips{display:flex;flex-wrap:wrap;gap:5px}
+.pchips button{font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;
+  border:1px solid var(--line);border-radius:999px;padding:3px 9px;line-height:1.5;
+  background:transparent;color:var(--ink-soft);max-width:100%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pchips button.on{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.pchips button:focus-visible{outline:2px solid var(--route);outline-offset:2px}
+.plist{list-style:none;margin:0;padding:0;border:1.5px solid var(--line);
+  border-radius:9px;overflow:hidden;background:var(--panel)}
+.plist li{padding:7px 11px;font-size:14px;cursor:pointer;display:flex;justify-content:space-between;
+  align-items:baseline;gap:10px;border-top:1px solid var(--line);min-width:0}
+.plist .pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plist li:first-child{border-top:none}
+.plist li:hover{background:color-mix(in srgb,var(--route) 12%,transparent)}
+.plist .pn{font-weight:700}
+.plist .pl{font-size:12.5px;color:var(--ink-soft);white-space:nowrap}
+.pnone{padding:11px 13px;font-size:13.5px;color:var(--ink-soft)}</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="school">新北市立中和高級中學</div>
+    <h1 class="occasion">校內導航</h1>
+    <button class="themebtn" id="themeBtn" type="button" aria-label="切換深色／淺色"></button>
+  </header>
+
+  <div class="picker" id="pickFrom"></div>
+  <div class="picker" id="pickTo"></div>
+  <div class="viewctl" id="viewctl"></div>
+  <main class="result" id="result"></main>
+</div>
+
+<script>
+const D = {"grids":{"base":{"maxr":106,"maxc":103,"blocks":[{"label":"掃具室","r1":45,"c1":10,"r2":50,"c2":15,"ref":"J45:O50","w":6,"h":6,"src":"in"},{"label":"102","r1":2,"c1":30,"r2":7,"c2":35,"ref":"AD2:AI7","w":6,"h":6,"src":"in"},{"label":"女廁","r1":2,"c1":44,"r2":5,"c2":46,"ref":"AR2:AT5","w":3,"h":4,"src":"in"},{"label":"304","r1":33,"c1":44,"r2":38,"c2":49,"ref":"AR33:AW38","w":6,"h":6,"src":"in"},{"label":"樓梯","r1":2,"c1":16,"r2":5,"c2":17,"ref":"P2:Q5","w":2,"h":4,"src":"in"},{"label":null,"r1":6,"c1":44,"r2":7,"c2":45,"ref":"AR6:AS7","w":2,"h":2,"src":"in"},{"label":"學務處\n教官室","r1":33,"c1":67,"r2":50,"c2":77,"ref":"BO33:BY50","w":11,"h":18,"src":"in"},{"label":"306","r1":45,"c1":44,"r2":50,"c2":49,"ref":"AR45:AW50","w":6,"h":6,"src":"in"},{"label":"樓梯","r1":58,"c1":34,"r2":61,"c2":41,"ref":"AH58:AO61","w":8,"h":4,"src":"in"},{"label":"女廁","r1":4,"c1":10,"r2":7,"c2":11,"ref":"J4:K7","w":2,"h":4,"src":"in"},{"label":"女廁","r1":42,"c1":54,"r2":43,"c2":57,"ref":"BB42:BE43","w":4,"h":2,"src":"in"},{"label":"無障礙","r1":4,"c1":12,"r2":7,"c2":13,"ref":"L4:M7","w":2,"h":4,"src":"in"},{"label":"302","r1":17,"c1":44,"r2":22,"c2":49,"ref":"AR17:AW22","w":6,"h":6,"src":"in"},{"label":"男廁","r1":2,"c1":47,"r2":5,"c2":49,"ref":"AU2:AW5","w":3,"h":4,"src":"in"},{"label":"301","r1":11,"c1":44,"r2":16,"c2":49,"ref":"AR11:AW16","w":6,"h":6,"src":"in"},{"label":"203","r1":2,"c1":18,"r2":7,"c2":23,"ref":"R2:W7","w":6,"h":6,"src":"in"},{"label":"健護教室","r1":33,"c1":10,"r2":38,"c2":15,"ref":"J33:O38","w":6,"h":6,"src":"in"},{"label":"男廁","r1":38,"c1":54,"r2":39,"c2":57,"ref":"BB38:BE39","w":4,"h":2,"src":"in"},{"label":"電梯","r1":44,"c1":54,"r2":45,"c2":57,"ref":"BB44:BE45","w":4,"h":2,"src":"in"},{"label":"樓梯","r1":48,"c1":54,"r2":50,"c2":57,"ref":"BB48:BE50","w":4,"h":3,"src":"in"},{"label":"美術教室(三)","r1":39,"c1":10,"r2":44,"c2":15,"ref":"J39:O44","w":6,"h":6,"src":"in"},{"label":"運動防護&器材室","r1":17,"c1":10,"r2":22,"c2":15,"ref":"J17:O22","w":6,"h":6,"src":"in"},{"label":"女廁","r1":11,"c1":61,"r2":12,"c2":66,"ref":"BI11:BN12","w":6,"h":2,"src":"in"},{"label":"101","r1":2,"c1":24,"r2":7,"c2":29,"ref":"X2:AC7","w":6,"h":6,"src":"in"},{"label":"無障礙","r1":13,"c1":61,"r2":14,"c2":66,"ref":"BI13:BN14","w":6,"h":2,"src":"in"},{"label":"茶水間","r1":40,"c1":54,"r2":41,"c2":57,"ref":"BB40:BE41","w":4,"h":2,"src":"in"},{"label":"103","r1":2,"c1":36,"r2":7,"c2":41,"ref":"AJ2:AO7","w":6,"h":6,"src":"in"},{"label":"303","r1":27,"c1":44,"r2":32,"c2":49,"ref":"AR27:AW32","w":6,"h":6,"src":"in"},{"label":"樓梯","r1":58,"c1":18,"r2":61,"c2":25,"ref":"R58:Y61","w":8,"h":4,"src":"in"},{"label":"男廁","r1":15,"c1":61,"r2":16,"c2":66,"ref":"BI15:BN16","w":6,"h":2,"src":"in"},{"label":null,"r1":60,"c1":44,"r2":61,"c2":47,"ref":"AR60:AU61","w":4,"h":2,"src":"in"},{"label":"305","r1":39,"c1":44,"r2":44,"c2":49,"ref":"AR39:AW44","w":6,"h":6,"src":"in"},{"label":"男廁","r1":4,"c1":14,"r2":7,"c2":15,"ref":"N4:O7","w":2,"h":4,"src":"in"},{"label":"健康中心","r1":33,"c1":61,"r2":41,"c2":66,"ref":"BI33:BN41","w":6,"h":9,"src":"in"},{"label":"國際教育資源中心","r1":17,"c1":61,"r2":26,"c2":66,"ref":"BI17:BN26","w":6,"h":10,"src":"in"},{"label":"理化教室","r1":4,"c1":52,"r2":7,"c2":60,"ref":"AZ4:BH7","w":9,"h":4,"src":"in"},{"label":null,"r1":33,"c1":54,"r2":37,"c2":57,"ref":"BB33:BE37","w":4,"h":5,"src":"in"},{"label":"樓梯","r1":6,"c1":63,"r2":7,"c2":66,"ref":"BK6:BN7","w":4,"h":2,"src":"in"},{"label":"體育\n辦公室","r1":11,"c1":10,"r2":16,"c2":15,"ref":"J11:O16","w":6,"h":6,"src":"in"},{"label":"軍訓室","r1":27,"c1":10,"r2":32,"c2":15,"ref":"J27:O32","w":6,"h":6,"src":"in"},{"label":"樓梯","r1":6,"c1":46,"r2":7,"c2":49,"ref":"AT6:AW7","w":4,"h":2,"src":"in"},{"label":null,"r1":6,"c1":61,"r2":7,"c2":62,"ref":"BI6:BJ7","w":2,"h":2,"src":"in"},{"label":"潛能教室","r1":11,"c1":67,"r2":16,"c2":77,"ref":"BO11:BY16","w":11,"h":6,"src":"in"},{"label":"活動中心","r1":83,"c1":50,"r2":105,"c2":80,"ref":"AX83:CB105","w":31,"h":23,"src":"out"},{"label":"圖書館","r1":69,"c1":18,"r2":86,"c2":41,"ref":"R69:AO86","w":24,"h":18,"src":"out"},{"label":"校門口","r1":58,"c1":86,"r2":73,"c2":91,"ref":"CH58:CM73","w":6,"h":16,"src":"out"},{"label":"連城路","r1":2,"c1":93,"r2":105,"c2":102,"ref":"CO2:CX105","w":10,"h":104,"src":"out"}],"W":{"V":[[2,16],[2,18],[2,52],[2,92],[3,16],[3,18],[3,52],[3,92],[4,10],[4,16],[4,18],[4,61],[4,92],[5,10],[5,16],[5,18],[5,61],[5,92],[6,10],[6,16],[6,18],[6,50],[6,67],[6,92],[7,10],[7,16],[7,18],[7,50],[7,67],[7,92],[8,10],[8,92],[9,10],[9,92],[10,10],[10,92],[11,10],[11,18],[11,42],[11,50],[11,58],[11,78],[11,92],[12,10],[12,18],[12,42],[12,50],[12,58],[12,78],[12,92],[13,10],[13,18],[13,42],[13,50],[13,58],[13,78],[13,92],[14,10],[14,18],[14,42],[14,50],[14,58],[14,78],[14,92],[15,10],[15,18],[15,42],[15,50],[15,58],[15,78],[15,92],[16,10],[16,18],[16,42],[16,50],[16,58],[16,78],[16,92],[17,10],[17,18],[17,42],[17,50],[17,58],[17,67],[17,92],[18,10],[18,18],[18,42],[18,50],[18,58],[18,67],[18,92],[19,10],[19,18],[19,42],[19,50],[19,58],[19,67],[19,92],[20,10],[20,18],[20,42],[20,50],[20,58],[20,67],[20,92],[21,10],[21,18],[21,42],[21,50],[21,58],[21,67],[21,92],[22,10],[22,18],[22,42],[22,50],[22,58],[22,67],[22,92],[23,67],[23,92],[24,67],[24,92],[25,67],[25,92],[26,67],[26,92],[27,10],[27,18],[27,42],[27,50],[27,58],[27,67],[27,92],[28,10],[28,18],[28,42],[28,50],[28,58],[28,67],[28,92],[29,10],[29,18],[29,42],[29,50],[29,58],[29,67],[29,92],[30,10],[30,18],[30,42],[30,50],[30,58],[30,67],[30,92],[31,10],[31,18],[31,42],[31,50],[31,58],[31,67],[31,92],[32,10],[32,18],[32,42],[32,50],[32,58],[32,67],[32,92],[33,10],[33,18],[33,42],[33,50],[33,54],[33,78],[33,92],[34,10],[34,18],[34,42],[34,50],[34,54],[34,78],[34,92],[35,10],[35,18],[35,42],[35,50],[35,54],[35,78],[35,92],[36,10],[36,18],[36,42],[36,50],[36,54],[36,78],[36,92],[37,10],[37,18],[37,42],[37,50],[37,54],[37,78],[37,92],[38,10],[38,18],[38,42],[38,50],[38,54],[38,78],[38,92],[39,10],[39,18],[39,42],[39,50],[39,54],[39,78],[39,92],[40,10],[40,18],[40,42],[40,50],[40,54],[40,78],[40,92],[41,10],[41,18],[41,42],[41,50],[41,54],[41,78],[41,92],[42,10],[42,18],[42,42],[42,50],[42,54],[42,78],[42,92],[43,10],[43,18],[43,42],[43,50],[43,54],[43,78],[43,92],[44,10],[44,18],[44,42],[44,50],[44,54],[44,78],[44,92],[45,10],[45,18],[45,42],[45,50],[45,54],[45,78],[45,92],[46,10],[46,18],[46,42],[46,50],[46,54],[46,78],[46,92],[47,10],[47,18],[47,42],[47,50],[47,54],[47,78],[47,92],[48,10],[48,18],[48,42],[48,50],[48,54],[48,58],[48,78],[48,92],[49,10],[49,18],[49,42],[49,50],[49,54],[49,58],[49,78],[49,92],[50,10],[50,18],[50,42],[50,50],[50,54],[50,58],[50,78],[50,92],[51,10],[51,26],[51,34],[51,50],[51,92],[52,10],[52,26],[52,34],[52,50],[52,92],[53,10],[53,26],[53,34],[53,50],[53,92],[54,10],[54,50],[54,92],[55,10],[55,50],[55,92],[56,10],[56,50],[56,92],[57,10],[57,50],[57,92],[58,18],[58,26],[58,34],[58,42],[59,18],[59,26],[59,34],[59,42],[60,18],[60,26],[60,34],[60,42],[61,18],[61,26],[61,34],[61,42],[69,18],[69,42],[70,18],[70,42],[71,18],[71,42],[72,18],[72,42],[73,18],[73,42],[74,18],[74,42],[74,92],[75,18],[75,42],[75,92],[76,18],[76,42],[76,92],[77,18],[77,42],[77,92],[78,18],[78,42],[78,92],[79,18],[79,42],[79,92],[80,18],[80,42],[80,92],[81,18],[81,42],[81,92],[82,18],[82,42],[82,92],[83,18],[83,42],[83,50],[83,81],[83,92],[84,18],[84,42],[84,50],[84,81],[84,92],[85,18],[85,42],[85,50],[85,81],[85,92],[86,18],[86,42],[86,50],[86,81],[86,92],[87,50],[87,81],[87,92],[88,50],[88,81],[88,92],[89,50],[89,81],[89,92],[90,50],[90,81],[90,92],[91,50],[91,81],[91,92],[92,50],[92,81],[92,92],[93,50],[93,81],[93,92],[94,50],[94,81],[94,92],[95,50],[95,81],[95,92],[96,50],[96,81],[96,92],[97,50],[97,81],[97,92],[98,50],[98,81],[98,92],[99,50],[99,81],[99,92],[100,50],[100,81],[100,92],[101,50],[101,81],[101,92],[102,50],[102,81],[102,92],[103,50],[103,81],[103,92],[104,50],[104,81],[104,92],[105,50],[105,81],[105,92]],"H":[[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[2,23],[2,24],[2,25],[2,26],[2,27],[2,28],[2,29],[2,30],[2,31],[2,32],[2,33],[2,34],[2,35],[2,36],[2,37],[2,38],[2,39],[2,40],[2,41],[2,42],[2,43],[2,44],[2,45],[2,46],[2,47],[2,48],[2,49],[2,50],[2,51],[4,10],[4,11],[4,12],[4,13],[4,14],[4,15],[4,52],[4,53],[4,54],[4,55],[4,56],[4,57],[4,58],[4,59],[4,60],[6,44],[6,45],[6,46],[6,47],[6,48],[6,49],[6,61],[6,62],[6,63],[6,64],[6,65],[6,66],[8,44],[8,45],[8,46],[8,47],[8,48],[8,49],[8,63],[8,64],[8,65],[8,66],[8,67],[8,68],[8,69],[8,70],[8,71],[8,72],[8,73],[8,74],[8,75],[8,76],[8,77],[11,18],[11,19],[11,20],[11,21],[11,22],[11,23],[11,24],[11,25],[11,26],[11,33],[11,34],[11,35],[11,36],[11,37],[11,38],[11,39],[11,40],[11,41],[11,50],[11,51],[11,52],[11,53],[11,54],[11,55],[11,56],[11,57],[17,67],[17,68],[17,69],[17,70],[17,71],[17,72],[17,73],[17,74],[17,75],[17,76],[17,77],[33,54],[33,55],[33,56],[33,57],[33,67],[33,68],[33,69],[33,70],[33,71],[33,72],[33,73],[33,74],[33,75],[33,76],[33,77],[51,18],[51,19],[51,20],[51,21],[51,22],[51,23],[51,24],[51,25],[51,34],[51,35],[51,36],[51,37],[51,38],[51,39],[51,40],[51,41],[51,54],[51,55],[51,56],[51,57],[51,58],[51,59],[51,60],[51,61],[51,67],[51,68],[51,69],[51,70],[51,71],[51,72],[51,73],[51,74],[51,75],[51,76],[51,77],[58,10],[58,11],[58,12],[58,13],[58,14],[58,15],[58,44],[58,45],[58,46],[58,47],[58,48],[58,49],[62,18],[62,19],[62,20],[62,21],[62,22],[62,23],[62,24],[62,25],[62,34],[62,35],[62,36],[62,37],[62,38],[62,39],[62,40],[62,41],[69,18],[69,19],[69,20],[69,21],[69,22],[69,23],[69,24],[69,25],[69,26],[69,33],[69,34],[69,35],[69,36],[69,37],[69,38],[69,39],[69,40],[69,41],[83,50],[83,51],[83,52],[83,53],[83,54],[83,55],[83,56],[83,57],[83,58],[83,59],[83,60],[83,61],[83,69],[83,70],[83,71],[83,72],[83,73],[83,74],[83,75],[83,76],[83,77],[83,78],[83,79],[83,80],[87,18],[87,19],[87,20],[87,21],[87,22],[87,23],[87,24],[87,25],[87,26],[87,27],[87,28],[87,29],[87,30],[87,31],[87,32],[87,33],[87,34],[87,35],[87,36],[87,37],[87,38],[87,39],[87,40],[87,41],[106,50],[106,51],[106,52],[106,53],[106,54],[106,55],[106,56],[106,57],[106,58],[106,59],[106,60],[106,61],[106,62],[106,63],[106,64],[106,65],[106,66],[106,67],[106,68],[106,69],[106,70],[106,71],[106,72],[106,73],[106,74],[106,75],[106,76],[106,77],[106,78],[106,79],[106,80]]},"walk":[],"blocked":[[8,78],[9,78],[10,78],[23,50],[23,57],[24,50],[24,57],[25,50],[25,57],[26,50],[26,57],[50,50],[50,51],[50,52],[50,53],[51,50],[51,51],[51,52],[51,53]]},"室內2F":{"maxr":62,"maxc":79,"blocks":[{"label":"105","r1":45,"c1":10,"r2":50,"c2":15,"ref":"J45:O50","w":6,"h":6},{"label":"113","r1":2,"c1":30,"r2":7,"c2":35,"ref":"AD2:AI7","w":6,"h":6},{"label":"女廁","r1":2,"c1":44,"r2":5,"c2":46,"ref":"AR2:AT5","w":3,"h":4},{"label":"310","r1":33,"c1":44,"r2":38,"c2":49,"ref":"AR33:AW38","w":6,"h":6},{"label":"樓梯","r1":2,"c1":16,"r2":5,"c2":17,"ref":"P2:Q5","w":2,"h":4},{"label":"男廁","r1":14,"c1":61,"r2":16,"c2":66,"ref":"BI14:BN16","w":6,"h":3},{"label":null,"r1":6,"c1":44,"r2":7,"c2":45,"ref":"AR6:AS7","w":2,"h":2},{"label":"教務處","r1":38,"c1":63,"r2":50,"c2":77,"ref":"BK38:BY50","w":15,"h":13},{"label":"男廁","r1":4,"c1":13,"r2":7,"c2":15,"ref":"M4:O7","w":3,"h":4},{"label":"312","r1":45,"c1":44,"r2":50,"c2":49,"ref":"AR45:AW50","w":6,"h":6},{"label":"樓梯","r1":58,"c1":34,"r2":61,"c2":41,"ref":"AH58:AO61","w":8,"h":4},{"label":"女廁","r1":42,"c1":54,"r2":43,"c2":57,"ref":"BB42:BE43","w":4,"h":2},{"label":"308","r1":17,"c1":44,"r2":22,"c2":49,"ref":"AR17:AW22","w":6,"h":6},{"label":"307","r1":11,"c1":44,"r2":16,"c2":49,"ref":"AR11:AW16","w":6,"h":6},{"label":"男廁","r1":2,"c1":47,"r2":5,"c2":49,"ref":"AU2:AW5","w":3,"h":4},{"label":"111","r1":2,"c1":18,"r2":7,"c2":23,"ref":"R2:W7","w":6,"h":6},{"label":"107","r1":33,"c1":10,"r2":38,"c2":15,"ref":"J33:O38","w":6,"h":6},{"label":"109","r1":17,"c1":10,"r2":22,"c2":15,"ref":"J17:O22","w":6,"h":6},{"label":"男廁","r1":38,"c1":54,"r2":39,"c2":57,"ref":"BB38:BE39","w":4,"h":2},{"label":"電梯","r1":44,"c1":54,"r2":45,"c2":57,"ref":"BB44:BE45","w":4,"h":2},{"label":"106","r1":39,"c1":10,"r2":44,"c2":15,"ref":"J39:O44","w":6,"h":6},{"label":"樓梯","r1":48,"c1":54,"r2":50,"c2":57,"ref":"BB48:BE50","w":4,"h":3},{"label":"112","r1":2,"c1":24,"r2":7,"c2":29,"ref":"X2:AC7","w":6,"h":6},{"label":"茶水間","r1":40,"c1":54,"r2":41,"c2":57,"ref":"BB40:BE41","w":4,"h":2},{"label":"114","r1":2,"c1":36,"r2":7,"c2":41,"ref":"AJ2:AO7","w":6,"h":6},{"label":"309","r1":27,"c1":44,"r2":32,"c2":49,"ref":"AR27:AW32","w":6,"h":6},{"label":"樓梯","r1":58,"c1":18,"r2":61,"c2":25,"ref":"R58:Y61","w":8,"h":4},{"label":"311","r1":39,"c1":44,"r2":44,"c2":49,"ref":"AR39:AW44","w":6,"h":6},{"label":null,"r1":60,"c1":44,"r2":61,"c2":47,"ref":"AR60:AU61","w":4,"h":2},{"label":"生物實驗室(一)","r1":17,"c1":61,"r2":26,"c2":66,"ref":"BI17:BN26","w":6,"h":10},{"label":"設備組","r1":4,"c1":52,"r2":7,"c2":60,"ref":"AZ4:BH7","w":9,"h":4},{"label":null,"r1":33,"c1":54,"r2":37,"c2":57,"ref":"BB33:BE37","w":4,"h":5},{"label":"樓梯","r1":6,"c1":63,"r2":7,"c2":66,"ref":"BK6:BN7","w":4,"h":2},{"label":"110","r1":11,"c1":10,"r2":16,"c2":15,"ref":"J11:O16","w":6,"h":6},{"label":"108","r1":27,"c1":10,"r2":32,"c2":15,"ref":"J27:O32","w":6,"h":6},{"label":"女廁","r1":11,"c1":61,"r2":13,"c2":66,"ref":"BI11:BN13","w":6,"h":3},{"label":"女廁","r1":4,"c1":10,"r2":7,"c2":12,"ref":"J4:L7","w":3,"h":4},{"label":"樓梯","r1":6,"c1":46,"r2":7,"c2":49,"ref":"AT6:AW7","w":4,"h":2},{"label":"輔導處","r1":33,"c1":61,"r2":37,"c2":77,"ref":"BI33:BY37","w":17,"h":5},{"label":null,"r1":6,"c1":61,"r2":7,"c2":62,"ref":"BI6:BJ7","w":2,"h":2},{"label":"生物實驗室(二)","r1":11,"c1":67,"r2":16,"c2":77,"ref":"BO11:BY16","w":11,"h":6}],"W":{"V":[[2,16],[2,18],[2,52],[3,16],[3,18],[3,52],[4,10],[4,16],[4,18],[5,10],[5,16],[5,18],[6,10],[6,16],[6,18],[6,50],[6,67],[7,10],[7,16],[7,18],[7,50],[7,67],[8,10],[8,78],[9,10],[9,78],[10,10],[10,78],[11,10],[11,18],[11,42],[11,50],[11,58],[11,78],[12,10],[12,18],[12,42],[12,50],[12,58],[12,78],[13,10],[13,18],[13,42],[13,50],[13,58],[13,78],[14,10],[14,18],[14,42],[14,50],[14,58],[14,78],[15,10],[15,18],[15,42],[15,50],[15,58],[15,78],[16,10],[16,18],[16,42],[16,50],[16,58],[16,78],[17,10],[17,18],[17,42],[17,50],[17,58],[17,67],[18,10],[18,18],[18,42],[18,50],[18,58],[18,67],[19,10],[19,18],[19,42],[19,50],[19,58],[19,67],[20,10],[20,18],[20,42],[20,50],[20,58],[20,67],[21,10],[21,18],[21,42],[21,50],[21,58],[21,67],[22,10],[22,18],[22,42],[22,50],[22,58],[22,67],[23,10],[23,18],[23,42],[23,50],[23,58],[23,67],[24,10],[24,18],[24,42],[24,50],[24,58],[24,67],[25,10],[25,18],[25,42],[25,50],[25,58],[25,67],[26,10],[26,18],[26,42],[26,50],[26,58],[26,67],[27,10],[27,18],[27,42],[27,50],[27,58],[27,67],[28,10],[28,18],[28,42],[28,50],[28,58],[28,67],[29,10],[29,18],[29,42],[29,50],[29,58],[29,67],[30,10],[30,18],[30,42],[30,50],[30,58],[30,67],[31,10],[31,18],[31,42],[31,50],[31,58],[31,67],[32,10],[32,18],[32,42],[32,50],[32,58],[32,67],[33,10],[33,18],[33,42],[33,50],[33,54],[33,78],[34,10],[34,18],[34,42],[34,50],[34,54],[34,78],[35,10],[35,18],[35,42],[35,50],[35,54],[35,78],[36,10],[36,18],[36,42],[36,50],[36,54],[36,78],[37,10],[37,18],[37,42],[37,50],[37,54],[37,78],[38,10],[38,18],[38,42],[38,50],[38,54],[38,78],[39,10],[39,18],[39,42],[39,50],[39,54],[39,78],[40,10],[40,18],[40,42],[40,50],[40,54],[40,78],[41,10],[41,18],[41,42],[41,50],[41,54],[41,78],[42,10],[42,18],[42,42],[42,50],[42,54],[42,78],[43,10],[43,18],[43,42],[43,50],[43,54],[43,78],[44,10],[44,18],[44,42],[44,50],[44,54],[44,78],[45,10],[45,18],[45,42],[45,50],[45,54],[45,78],[46,10],[46,18],[46,42],[46,50],[46,54],[46,78],[47,10],[47,18],[47,42],[47,50],[47,54],[47,78],[48,10],[48,18],[48,42],[48,50],[48,54],[48,58],[48,78],[49,10],[49,18],[49,42],[49,50],[49,54],[49,58],[49,78],[50,10],[50,18],[50,42],[50,50],[50,54],[50,58],[50,78],[51,10],[51,26],[51,34],[51,50],[52,10],[52,26],[52,34],[52,50],[53,10],[53,26],[53,34],[53,50],[54,10],[54,26],[54,34],[54,50],[55,10],[55,26],[55,34],[55,50],[56,10],[56,26],[56,34],[56,50],[57,10],[57,26],[57,34],[57,50],[58,18],[58,26],[58,34],[58,42],[59,18],[59,26],[59,34],[59,42],[60,18],[60,26],[60,34],[60,42],[61,18],[61,26],[61,34],[61,42]],"H":[[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[2,23],[2,24],[2,25],[2,26],[2,27],[2,28],[2,29],[2,30],[2,31],[2,32],[2,33],[2,34],[2,35],[2,36],[2,37],[2,38],[2,39],[2,40],[2,41],[2,42],[2,43],[2,44],[2,45],[2,46],[2,47],[2,48],[2,49],[2,50],[2,51],[4,10],[4,11],[4,12],[4,13],[4,14],[4,15],[4,52],[4,53],[4,54],[4,55],[4,56],[4,57],[4,58],[4,59],[4,60],[6,44],[6,45],[6,46],[6,47],[6,48],[6,49],[6,61],[6,62],[6,63],[6,64],[6,65],[6,66],[8,44],[8,45],[8,46],[8,47],[8,48],[8,49],[8,63],[8,64],[8,65],[8,66],[8,67],[8,68],[8,69],[8,70],[8,71],[8,72],[8,73],[8,74],[8,75],[8,76],[8,77],[11,18],[11,19],[11,20],[11,21],[11,22],[11,23],[11,24],[11,25],[11,26],[11,27],[11,28],[11,29],[11,30],[11,31],[11,32],[11,33],[11,34],[11,35],[11,36],[11,37],[11,38],[11,39],[11,40],[11,41],[11,50],[11,51],[11,52],[11,53],[11,54],[11,55],[11,56],[11,57],[17,67],[17,68],[17,69],[17,70],[17,71],[17,72],[17,73],[17,74],[17,75],[17,76],[17,77],[33,54],[33,55],[33,56],[33,57],[33,67],[33,68],[33,69],[33,70],[33,71],[33,72],[33,73],[33,74],[33,75],[33,76],[33,77],[51,18],[51,19],[51,20],[51,21],[51,22],[51,23],[51,24],[51,25],[51,34],[51,35],[51,36],[51,37],[51,38],[51,39],[51,40],[51,41],[51,54],[51,55],[51,56],[51,57],[51,58],[51,59],[51,60],[51,61],[51,62],[51,63],[51,64],[51,65],[51,66],[51,67],[51,68],[51,69],[51,70],[51,71],[51,72],[51,73],[51,74],[51,75],[51,76],[51,77],[58,10],[58,11],[58,12],[58,13],[58,14],[58,15],[58,16],[58,17],[58,42],[58,43],[58,44],[58,45],[58,46],[58,47],[58,48],[58,49],[62,18],[62,19],[62,20],[62,21],[62,22],[62,23],[62,24],[62,25],[62,34],[62,35],[62,36],[62,37],[62,38],[62,39],[62,40],[62,41]]},"walk":[],"blocked":[]},"室內3F":{"maxr":62,"maxc":79,"blocks":[{"label":"117","r1":2,"c1":30,"r2":7,"c2":35,"ref":"AD2:AI7","w":6,"h":6},{"label":null,"r1":33,"c1":70,"r2":37,"c2":73,"ref":"BR33:BU37","w":4,"h":5},{"label":"104","r1":45,"c1":10,"r2":50,"c2":15,"ref":"J45:O50","w":6,"h":6},{"label":"女廁","r1":2,"c1":44,"r2":5,"c2":46,"ref":"AR2:AT5","w":3,"h":4},{"label":"316","r1":33,"c1":44,"r2":38,"c2":49,"ref":"AR33:AW38","w":6,"h":6},{"label":"樓梯","r1":2,"c1":16,"r2":5,"c2":17,"ref":"P2:Q5","w":2,"h":4},{"label":"男廁","r1":14,"c1":61,"r2":16,"c2":66,"ref":"BI14:BN16","w":6,"h":3},{"label":null,"r1":6,"c1":44,"r2":7,"c2":45,"ref":"AR6:AS7","w":2,"h":2},{"label":"總務處","r1":38,"c1":63,"r2":43,"c2":77,"ref":"BK38:BY43","w":15,"h":6},{"label":"318","r1":45,"c1":44,"r2":50,"c2":49,"ref":"AR45:AW50","w":6,"h":6},{"label":"男廁","r1":4,"c1":13,"r2":7,"c2":15,"ref":"M4:O7","w":3,"h":4},{"label":"樓梯","r1":58,"c1":34,"r2":61,"c2":41,"ref":"AH58:AO61","w":8,"h":4},{"label":"女廁","r1":42,"c1":54,"r2":43,"c2":57,"ref":"BB42:BE43","w":4,"h":2},{"label":"校長室","r1":44,"c1":63,"r2":47,"c2":77,"ref":"BK44:BY47","w":15,"h":4},{"label":"314","r1":17,"c1":44,"r2":22,"c2":49,"ref":"AR17:AW22","w":6,"h":6},{"label":"313","r1":11,"c1":44,"r2":16,"c2":49,"ref":"AR11:AW16","w":6,"h":6},{"label":"男廁","r1":2,"c1":47,"r2":5,"c2":49,"ref":"AU2:AW5","w":3,"h":4},{"label":"115","r1":2,"c1":18,"r2":7,"c2":23,"ref":"R2:W7","w":6,"h":6},{"label":"202","r1":33,"c1":10,"r2":38,"c2":15,"ref":"J33:O38","w":6,"h":6},{"label":"電梯","r1":44,"c1":54,"r2":45,"c2":57,"ref":"BB44:BE45","w":4,"h":2},{"label":"樓梯","r1":48,"c1":54,"r2":50,"c2":57,"ref":"BB48:BE50","w":4,"h":3},{"label":"201","r1":39,"c1":10,"r2":44,"c2":15,"ref":"J39:O44","w":6,"h":6},{"label":"205","r1":17,"c1":10,"r2":22,"c2":15,"ref":"J17:O22","w":6,"h":6},{"label":"男廁","r1":38,"c1":54,"r2":39,"c2":57,"ref":"BB38:BE39","w":4,"h":2},{"label":"116","r1":2,"c1":24,"r2":7,"c2":29,"ref":"X2:AC7","w":6,"h":6},{"label":"人事室","r1":33,"c1":74,"r2":37,"c2":77,"ref":"BV33:BY37","w":4,"h":5},{"label":"茶水間","r1":40,"c1":54,"r2":41,"c2":57,"ref":"BB40:BE41","w":4,"h":2},{"label":"簡報室","r1":33,"c1":61,"r2":37,"c2":69,"ref":"BI33:BQ37","w":9,"h":5},{"label":"118","r1":2,"c1":36,"r2":7,"c2":41,"ref":"AJ2:AO7","w":6,"h":6},{"label":"315","r1":27,"c1":44,"r2":32,"c2":49,"ref":"AR27:AW32","w":6,"h":6},{"label":"樓梯","r1":58,"c1":18,"r2":61,"c2":25,"ref":"R58:Y61","w":8,"h":4},{"label":"317","r1":39,"c1":44,"r2":44,"c2":49,"ref":"AR39:AW44","w":6,"h":6},{"label":null,"r1":60,"c1":44,"r2":61,"c2":47,"ref":"AR60:AU61","w":4,"h":2},{"label":"化學實驗室(一)","r1":17,"c1":61,"r2":26,"c2":66,"ref":"BI17:BN26","w":6,"h":10},{"label":"視聽教室","r1":4,"c1":52,"r2":7,"c2":60,"ref":"AZ4:BH7","w":9,"h":4},{"label":null,"r1":33,"c1":54,"r2":37,"c2":57,"ref":"BB33:BE37","w":4,"h":5},{"label":"樓梯","r1":6,"c1":63,"r2":7,"c2":66,"ref":"BK6:BN7","w":4,"h":2},{"label":"206","r1":11,"c1":10,"r2":16,"c2":15,"ref":"J11:O16","w":6,"h":6},{"label":"204","r1":27,"c1":10,"r2":32,"c2":15,"ref":"J27:O32","w":6,"h":6},{"label":"女廁","r1":11,"c1":61,"r2":13,"c2":66,"ref":"BI11:BN13","w":6,"h":3},{"label":"女廁","r1":4,"c1":10,"r2":7,"c2":12,"ref":"J4:L7","w":3,"h":4},{"label":"會計室","r1":48,"c1":58,"r2":50,"c2":67,"ref":"BF48:BO50","w":10,"h":3},{"label":"樓梯","r1":6,"c1":46,"r2":7,"c2":49,"ref":"AT6:AW7","w":4,"h":2},{"label":null,"r1":6,"c1":61,"r2":7,"c2":62,"ref":"BI6:BJ7","w":2,"h":2},{"label":"化學實驗室(二)","r1":11,"c1":67,"r2":16,"c2":77,"ref":"BO11:BY16","w":11,"h":6}],"W":{"V":[[2,16],[2,18],[2,52],[3,16],[3,18],[3,52],[4,10],[4,16],[4,18],[5,10],[5,16],[5,18],[6,10],[6,16],[6,18],[6,50],[6,67],[7,10],[7,16],[7,18],[7,50],[7,67],[8,10],[8,78],[9,10],[9,78],[10,10],[10,78],[11,10],[11,18],[11,42],[11,50],[11,58],[11,78],[12,10],[12,18],[12,42],[12,50],[12,58],[12,78],[13,10],[13,18],[13,42],[13,50],[13,58],[13,78],[14,10],[14,18],[14,42],[14,50],[14,58],[14,78],[15,10],[15,18],[15,42],[15,50],[15,58],[15,78],[16,10],[16,18],[16,42],[16,50],[16,58],[16,78],[17,10],[17,18],[17,42],[17,50],[17,58],[17,67],[18,10],[18,18],[18,42],[18,50],[18,58],[18,67],[19,10],[19,18],[19,42],[19,50],[19,58],[19,67],[20,10],[20,18],[20,42],[20,50],[20,58],[20,67],[21,10],[21,18],[21,42],[21,50],[21,58],[21,67],[22,10],[22,18],[22,42],[22,50],[22,58],[22,67],[23,10],[23,18],[23,42],[23,50],[23,58],[23,67],[24,10],[24,18],[24,42],[24,50],[24,58],[24,67],[25,10],[25,18],[25,42],[25,50],[25,58],[25,67],[26,10],[26,18],[26,42],[26,50],[26,58],[26,67],[27,10],[27,18],[27,42],[27,50],[27,58],[27,67],[28,10],[28,18],[28,42],[28,50],[28,58],[28,67],[29,10],[29,18],[29,42],[29,50],[29,58],[29,67],[30,10],[30,18],[30,42],[30,50],[30,58],[30,67],[31,10],[31,18],[31,42],[31,50],[31,58],[31,67],[32,10],[32,18],[32,42],[32,50],[32,58],[32,67],[33,10],[33,18],[33,42],[33,50],[33,54],[33,78],[34,10],[34,18],[34,42],[34,50],[34,54],[34,78],[35,10],[35,18],[35,42],[35,50],[35,54],[35,78],[36,10],[36,18],[36,42],[36,50],[36,54],[36,78],[37,10],[37,18],[37,42],[37,50],[37,54],[37,78],[38,10],[38,18],[38,42],[38,50],[38,54],[38,78],[39,10],[39,18],[39,42],[39,50],[39,54],[39,78],[40,10],[40,18],[40,42],[40,50],[40,54],[40,78],[41,10],[41,18],[41,42],[41,50],[41,54],[41,78],[42,10],[42,18],[42,42],[42,50],[42,54],[42,78],[43,10],[43,18],[43,42],[43,50],[43,54],[43,78],[44,10],[44,18],[44,42],[44,50],[44,54],[44,78],[45,10],[45,18],[45,42],[45,50],[45,54],[45,78],[46,10],[46,18],[46,42],[46,50],[46,54],[46,78],[47,10],[47,18],[47,42],[47,50],[47,54],[47,78],[48,10],[48,18],[48,42],[48,50],[48,54],[48,58],[48,78],[49,10],[49,18],[49,42],[49,50],[49,54],[49,58],[49,78],[50,10],[50,18],[50,42],[50,50],[50,54],[50,58],[50,78],[51,10],[51,26],[51,34],[51,50],[52,10],[52,26],[52,34],[52,50],[53,10],[53,26],[53,34],[53,50],[54,10],[54,26],[54,34],[54,50],[55,10],[55,26],[55,34],[55,50],[56,10],[56,26],[56,34],[56,50],[57,10],[57,26],[57,34],[57,50],[58,18],[58,26],[58,34],[58,42],[59,18],[59,26],[59,34],[59,42],[60,18],[60,26],[60,34],[60,42],[61,18],[61,26],[61,34],[61,42]],"H":[[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[2,23],[2,24],[2,25],[2,26],[2,27],[2,28],[2,29],[2,30],[2,31],[2,32],[2,33],[2,34],[2,35],[2,36],[2,37],[2,38],[2,39],[2,40],[2,41],[2,42],[2,43],[2,44],[2,45],[2,46],[2,47],[2,48],[2,49],[2,50],[2,51],[4,10],[4,11],[4,12],[4,13],[4,14],[4,15],[4,52],[4,53],[4,54],[4,55],[4,56],[4,57],[4,58],[4,59],[4,60],[6,44],[6,45],[6,46],[6,47],[6,48],[6,49],[6,61],[6,62],[6,63],[6,64],[6,65],[6,66],[8,44],[8,45],[8,46],[8,47],[8,48],[8,49],[8,63],[8,64],[8,65],[8,66],[8,67],[8,68],[8,69],[8,70],[8,71],[8,72],[8,73],[8,74],[8,75],[8,76],[8,77],[11,18],[11,19],[11,20],[11,21],[11,22],[11,23],[11,24],[11,25],[11,26],[11,27],[11,28],[11,29],[11,30],[11,31],[11,32],[11,33],[11,34],[11,35],[11,36],[11,37],[11,38],[11,39],[11,40],[11,41],[11,50],[11,51],[11,52],[11,53],[11,54],[11,55],[11,56],[11,57],[17,67],[17,68],[17,69],[17,70],[17,71],[17,72],[17,73],[17,74],[17,75],[17,76],[17,77],[33,54],[33,55],[33,56],[33,57],[33,67],[33,68],[33,69],[33,70],[33,71],[33,72],[33,73],[33,74],[33,75],[33,76],[33,77],[51,18],[51,19],[51,20],[51,21],[51,22],[51,23],[51,24],[51,25],[51,34],[51,35],[51,36],[51,37],[51,38],[51,39],[51,40],[51,41],[51,54],[51,55],[51,56],[51,57],[51,58],[51,59],[51,60],[51,61],[51,62],[51,63],[51,64],[51,65],[51,66],[51,67],[51,68],[51,69],[51,70],[51,71],[51,72],[51,73],[51,74],[51,75],[51,76],[51,77],[58,10],[58,11],[58,12],[58,13],[58,14],[58,15],[58,16],[58,17],[58,42],[58,43],[58,44],[58,45],[58,46],[58,47],[58,48],[58,49],[62,18],[62,19],[62,20],[62,21],[62,22],[62,23],[62,24],[62,25],[62,34],[62,35],[62,36],[62,37],[62,38],[62,39],[62,40],[62,41]]},"walk":["BK38:BY43"],"blocked":[]},"室內4F":{"maxr":62,"maxc":79,"blocks":[{"label":"207","r1":45,"c1":10,"r2":50,"c2":15,"ref":"J45:O50","w":6,"h":6},{"label":"女廁","r1":2,"c1":44,"r2":5,"c2":46,"ref":"AR2:AT5","w":3,"h":4},{"label":"樓梯","r1":2,"c1":16,"r2":5,"c2":17,"ref":"P2:Q5","w":2,"h":4},{"label":"男廁","r1":14,"c1":61,"r2":16,"c2":66,"ref":"BI14:BN16","w":6,"h":3},{"label":"專任辦公室","r1":2,"c1":30,"r2":7,"c2":41,"ref":"AD2:AO7","w":12,"h":6},{"label":null,"r1":6,"c1":44,"r2":7,"c2":45,"ref":"AR6:AS7","w":2,"h":2},{"label":"男廁","r1":4,"c1":13,"r2":7,"c2":15,"ref":"M4:O7","w":3,"h":4},{"label":"樓梯","r1":58,"c1":34,"r2":61,"c2":41,"ref":"AH58:AO61","w":8,"h":4},{"label":"女廁","r1":42,"c1":54,"r2":43,"c2":57,"ref":"BB42:BE43","w":4,"h":2},{"label":"男廁","r1":2,"c1":47,"r2":5,"c2":49,"ref":"AU2:AW5","w":3,"h":4},{"label":"國際教室","r1":2,"c1":18,"r2":7,"c2":23,"ref":"R2:W7","w":6,"h":6},{"label":"209","r1":33,"c1":10,"r2":38,"c2":15,"ref":"J33:O38","w":6,"h":6},{"label":"男廁","r1":38,"c1":54,"r2":39,"c2":57,"ref":"BB38:BE39","w":4,"h":2},{"label":"樓梯","r1":48,"c1":54,"r2":50,"c2":57,"ref":"BB48:BE50","w":4,"h":3},{"label":"208","r1":39,"c1":10,"r2":44,"c2":15,"ref":"J39:O44","w":6,"h":6},{"label":"電梯","r1":44,"c1":54,"r2":45,"c2":57,"ref":"BB44:BE45","w":4,"h":2},{"label":"211","r1":17,"c1":10,"r2":22,"c2":15,"ref":"J17:O22","w":6,"h":6},{"label":"寰宇教室","r1":2,"c1":24,"r2":7,"c2":29,"ref":"X2:AC7","w":6,"h":6},{"label":"生科教室","r1":11,"c1":44,"r2":22,"c2":49,"ref":"AR11:AW22","w":6,"h":12},{"label":"茶水間","r1":40,"c1":54,"r2":41,"c2":57,"ref":"BB40:BE41","w":4,"h":2},{"label":"商談室","r1":48,"c1":58,"r2":50,"c2":62,"ref":"BF48:BJ50","w":5,"h":3},{"label":"導師辦公室","r1":33,"c1":63,"r2":50,"c2":77,"ref":"BK33:BY50","w":15,"h":18},{"label":"創客工廠","r1":23,"c1":44,"r2":26,"c2":49,"ref":"AR23:AW26","w":6,"h":4},{"label":"樓梯","r1":58,"c1":18,"r2":61,"c2":25,"ref":"R58:Y61","w":8,"h":4},{"label":null,"r1":60,"c1":44,"r2":61,"c2":47,"ref":"AR60:AU61","w":4,"h":2},{"label":"物理實驗室(一)","r1":17,"c1":61,"r2":26,"c2":66,"ref":"BI17:BN26","w":6,"h":10},{"label":"電腦教室(三)","r1":4,"c1":52,"r2":7,"c2":60,"ref":"AZ4:BH7","w":9,"h":4},{"label":null,"r1":33,"c1":54,"r2":37,"c2":57,"ref":"BB33:BE37","w":4,"h":5},{"label":"電腦教室(二)","r1":39,"c1":44,"r2":50,"c2":49,"ref":"AR39:AW50","w":6,"h":12},{"label":"樓梯","r1":6,"c1":63,"r2":7,"c2":66,"ref":"BK6:BN7","w":4,"h":2},{"label":"212","r1":11,"c1":10,"r2":16,"c2":15,"ref":"J11:O16","w":6,"h":6},{"label":"210","r1":27,"c1":10,"r2":32,"c2":15,"ref":"J27:O32","w":6,"h":6},{"label":"女廁","r1":11,"c1":61,"r2":13,"c2":66,"ref":"BI11:BN13","w":6,"h":3},{"label":"女廁","r1":4,"c1":10,"r2":7,"c2":12,"ref":"J4:L7","w":3,"h":4},{"label":"電腦教室(一)","r1":27,"c1":44,"r2":38,"c2":49,"ref":"AR27:AW38","w":6,"h":12},{"label":"樓梯","r1":6,"c1":46,"r2":7,"c2":49,"ref":"AT6:AW7","w":4,"h":2},{"label":null,"r1":6,"c1":61,"r2":7,"c2":62,"ref":"BI6:BJ7","w":2,"h":2},{"label":"物理實驗室(二)","r1":11,"c1":67,"r2":16,"c2":77,"ref":"BO11:BY16","w":11,"h":6}],"W":{"V":[[2,16],[2,18],[2,52],[3,16],[3,18],[3,52],[4,10],[4,16],[4,18],[5,10],[5,16],[5,18],[6,10],[6,16],[6,18],[6,50],[6,67],[7,10],[7,16],[7,18],[7,50],[7,67],[8,10],[8,78],[9,10],[9,78],[10,10],[10,78],[11,10],[11,18],[11,42],[11,50],[11,58],[11,78],[12,10],[12,18],[12,42],[12,50],[12,58],[12,78],[13,10],[13,18],[13,42],[13,50],[13,58],[13,78],[14,10],[14,18],[14,42],[14,50],[14,58],[14,78],[15,10],[15,18],[15,42],[15,50],[15,58],[15,78],[16,10],[16,18],[16,42],[16,50],[16,58],[16,78],[17,10],[17,18],[17,42],[17,50],[17,58],[17,67],[18,10],[18,18],[18,42],[18,50],[18,58],[18,67],[19,10],[19,18],[19,42],[19,50],[19,58],[19,67],[20,10],[20,18],[20,42],[20,50],[20,58],[20,67],[21,10],[21,18],[21,42],[21,50],[21,58],[21,67],[22,10],[22,18],[22,42],[22,50],[22,58],[22,67],[23,10],[23,18],[23,42],[23,50],[23,58],[23,67],[24,10],[24,18],[24,42],[24,50],[24,58],[24,67],[25,10],[25,18],[25,42],[25,50],[25,58],[25,67],[26,10],[26,18],[26,42],[26,50],[26,58],[26,67],[27,10],[27,18],[27,42],[27,50],[27,58],[27,67],[28,10],[28,18],[28,42],[28,50],[28,58],[28,67],[29,10],[29,18],[29,42],[29,50],[29,58],[29,67],[30,10],[30,18],[30,42],[30,50],[30,58],[30,67],[31,10],[31,18],[31,42],[31,50],[31,58],[31,67],[32,10],[32,18],[32,42],[32,50],[32,58],[32,67],[33,10],[33,18],[33,42],[33,50],[33,54],[33,78],[34,10],[34,18],[34,42],[34,50],[34,54],[34,78],[35,10],[35,18],[35,42],[35,50],[35,54],[35,78],[36,10],[36,18],[36,42],[36,50],[36,54],[36,78],[37,10],[37,18],[37,42],[37,50],[37,54],[37,78],[38,10],[38,18],[38,42],[38,50],[38,54],[38,78],[39,10],[39,18],[39,42],[39,50],[39,54],[39,78],[40,10],[40,18],[40,42],[40,50],[40,54],[40,78],[41,10],[41,18],[41,42],[41,50],[41,54],[41,78],[42,10],[42,18],[42,42],[42,50],[42,54],[42,78],[43,10],[43,18],[43,42],[43,50],[43,54],[43,78],[44,10],[44,18],[44,42],[44,50],[44,54],[44,78],[45,10],[45,18],[45,42],[45,50],[45,54],[45,78],[46,10],[46,18],[46,42],[46,50],[46,54],[46,78],[47,10],[47,18],[47,42],[47,50],[47,54],[47,78],[48,10],[48,18],[48,42],[48,50],[48,54],[48,58],[48,78],[49,10],[49,18],[49,42],[49,50],[49,54],[49,58],[49,78],[50,10],[50,18],[50,42],[50,50],[50,54],[50,58],[50,78],[51,10],[51,26],[51,34],[51,50],[52,10],[52,26],[52,34],[52,50],[53,10],[53,26],[53,34],[53,50],[54,10],[54,26],[54,34],[54,50],[55,10],[55,26],[55,34],[55,50],[56,10],[56,26],[56,34],[56,50],[57,10],[57,26],[57,34],[57,50],[58,18],[58,26],[58,34],[58,42],[59,18],[59,26],[59,34],[59,42],[60,18],[60,26],[60,34],[60,42],[61,18],[61,26],[61,34],[61,42]],"H":[[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[2,23],[2,24],[2,25],[2,26],[2,27],[2,28],[2,29],[2,30],[2,31],[2,32],[2,33],[2,34],[2,35],[2,36],[2,37],[2,38],[2,39],[2,40],[2,41],[2,42],[2,43],[2,44],[2,45],[2,46],[2,47],[2,48],[2,49],[2,50],[2,51],[4,10],[4,11],[4,12],[4,13],[4,14],[4,15],[4,52],[4,53],[4,54],[4,55],[4,56],[4,57],[4,58],[4,59],[4,60],[6,44],[6,45],[6,46],[6,47],[6,48],[6,49],[6,61],[6,62],[6,63],[6,64],[6,65],[6,66],[8,44],[8,45],[8,46],[8,47],[8,48],[8,49],[8,63],[8,64],[8,65],[8,66],[8,67],[8,68],[8,69],[8,70],[8,71],[8,72],[8,73],[8,74],[8,75],[8,76],[8,77],[11,18],[11,19],[11,20],[11,21],[11,22],[11,23],[11,24],[11,25],[11,26],[11,27],[11,28],[11,29],[11,30],[11,31],[11,32],[11,33],[11,34],[11,35],[11,36],[11,37],[11,38],[11,39],[11,40],[11,41],[11,50],[11,51],[11,52],[11,53],[11,54],[11,55],[11,56],[11,57],[17,67],[17,68],[17,69],[17,70],[17,71],[17,72],[17,73],[17,74],[17,75],[17,76],[17,77],[33,54],[33,55],[33,56],[33,57],[33,61],[33,62],[33,63],[33,64],[33,65],[33,66],[33,67],[33,68],[33,69],[33,70],[33,71],[33,72],[33,73],[33,74],[33,75],[33,76],[33,77],[51,18],[51,19],[51,20],[51,21],[51,22],[51,23],[51,24],[51,25],[51,34],[51,35],[51,36],[51,37],[51,38],[51,39],[51,40],[51,41],[51,54],[51,55],[51,56],[51,57],[51,58],[51,59],[51,60],[51,61],[51,62],[51,63],[51,64],[51,65],[51,66],[51,67],[51,68],[51,69],[51,70],[51,71],[51,72],[51,73],[51,74],[51,75],[51,76],[51,77],[58,10],[58,11],[58,12],[58,13],[58,14],[58,15],[58,16],[58,17],[58,42],[58,43],[58,44],[58,45],[58,46],[58,47],[58,48],[58,49],[62,18],[62,19],[62,20],[62,21],[62,22],[62,23],[62,24],[62,25],[62,34],[62,35],[62,36],[62,37],[62,38],[62,39],[62,40],[62,41]]},"walk":[],"blocked":[]},"室內5F":{"maxr":62,"maxc":79,"blocks":[{"label":"213","r1":45,"c1":10,"r2":50,"c2":15,"ref":"J45:O50","w":6,"h":6},{"label":"女廁","r1":2,"c1":44,"r2":5,"c2":46,"ref":"AR2:AT5","w":3,"h":4},{"label":"女廁","r1":37,"c1":54,"r2":38,"c2":57,"ref":"BB37:BE38","w":4,"h":2},{"label":"樓梯","r1":2,"c1":16,"r2":5,"c2":17,"ref":"P2:Q5","w":2,"h":4},{"label":"男廁","r1":14,"c1":61,"r2":16,"c2":66,"ref":"BI14:BN16","w":6,"h":3},{"label":"社會科教室","r1":2,"c1":30,"r2":7,"c2":41,"ref":"AD2:AO7","w":12,"h":6},{"label":null,"r1":6,"c1":44,"r2":7,"c2":45,"ref":"AR6:AS7","w":2,"h":2},{"label":"男廁","r1":4,"c1":13,"r2":7,"c2":15,"ref":"M4:O7","w":3,"h":4},{"label":"音樂教室(二)","r1":45,"c1":44,"r2":50,"c2":49,"ref":"AR45:AW50","w":6,"h":6},{"label":"地科教室","r1":18,"c1":44,"r2":26,"c2":49,"ref":"AR18:AW26","w":6,"h":9},{"label":"樓梯","r1":58,"c1":34,"r2":61,"c2":41,"ref":"AH58:AO61","w":8,"h":4},{"label":"男廁","r1":33,"c1":54,"r2":34,"c2":57,"ref":"BB33:BE34","w":4,"h":2},{"label":"美術教室(一)","r1":2,"c1":18,"r2":7,"c2":23,"ref":"R2:W7","w":6,"h":6},{"label":"男廁","r1":2,"c1":47,"r2":5,"c2":49,"ref":"AU2:AW5","w":3,"h":4},{"label":"215","r1":33,"c1":10,"r2":38,"c2":15,"ref":"J33:O38","w":6,"h":6},{"label":"茶水間","r1":35,"c1":54,"r2":36,"c2":57,"ref":"BB35:BE36","w":4,"h":2},{"label":"電梯","r1":44,"c1":54,"r2":45,"c2":57,"ref":"BB44:BE45","w":4,"h":2},{"label":"樓梯","r1":48,"c1":54,"r2":50,"c2":57,"ref":"BB48:BE50","w":4,"h":3},{"label":"214","r1":39,"c1":10,"r2":44,"c2":15,"ref":"J39:O44","w":6,"h":6},{"label":"217","r1":17,"c1":10,"r2":22,"c2":15,"ref":"J17:O22","w":6,"h":6},{"label":"美術教室(二)","r1":2,"c1":24,"r2":7,"c2":29,"ref":"X2:AC7","w":6,"h":6},{"label":"樓梯","r1":58,"c1":18,"r2":61,"c2":25,"ref":"R58:Y61","w":8,"h":4},{"label":null,"r1":60,"c1":44,"r2":61,"c2":47,"ref":"AR60:AU61","w":4,"h":2},{"label":"音樂教室(一)","r1":39,"c1":44,"r2":44,"c2":49,"ref":"AR39:AW44","w":6,"h":6},{"label":"家政教室","r1":17,"c1":61,"r2":26,"c2":66,"ref":"BI17:BN26","w":6,"h":10},{"label":"電腦教室(四)","r1":4,"c1":52,"r2":7,"c2":60,"ref":"AZ4:BH7","w":9,"h":4},{"label":"星象館","r1":11,"c1":44,"r2":17,"c2":49,"ref":"AR11:AW17","w":6,"h":7},{"label":"樓梯","r1":6,"c1":63,"r2":7,"c2":66,"ref":"BK6:BN7","w":4,"h":2},{"label":"218","r1":11,"c1":10,"r2":16,"c2":15,"ref":"J11:O16","w":6,"h":6},{"label":"216","r1":27,"c1":10,"r2":32,"c2":15,"ref":"J27:O32","w":6,"h":6},{"label":"女廁","r1":11,"c1":61,"r2":13,"c2":66,"ref":"BI11:BN13","w":6,"h":3},{"label":"女廁","r1":4,"c1":10,"r2":7,"c2":12,"ref":"J4:L7","w":3,"h":4},{"label":"儲藏室","r1":39,"c1":54,"r2":43,"c2":57,"ref":"BB39:BE43","w":4,"h":5},{"label":"韻律教室","r1":27,"c1":44,"r2":38,"c2":49,"ref":"AR27:AW38","w":6,"h":12},{"label":"自主學習空間","r1":33,"c1":58,"r2":50,"c2":77,"ref":"BF33:BY50","w":20,"h":18},{"label":"樓梯","r1":6,"c1":46,"r2":7,"c2":49,"ref":"AT6:AW7","w":4,"h":2},{"label":null,"r1":6,"c1":61,"r2":7,"c2":62,"ref":"BI6:BJ7","w":2,"h":2},{"label":"團輔室","r1":11,"c1":67,"r2":16,"c2":77,"ref":"BO11:BY16","w":11,"h":6}],"W":{"V":[[2,16],[2,18],[2,24],[2,52],[3,16],[3,18],[3,24],[3,52],[4,10],[4,16],[4,18],[4,24],[4,61],[5,10],[5,16],[5,18],[5,24],[5,61],[6,10],[6,16],[6,18],[6,24],[6,50],[6,67],[7,10],[7,16],[7,18],[7,24],[7,50],[7,67],[8,10],[8,78],[9,10],[9,78],[10,10],[10,78],[11,10],[11,18],[11,42],[11,50],[11,58],[11,78],[12,10],[12,18],[12,42],[12,50],[12,58],[12,78],[13,10],[13,18],[13,42],[13,50],[13,58],[13,78],[14,10],[14,18],[14,42],[14,50],[14,58],[14,78],[15,10],[15,18],[15,42],[15,50],[15,58],[15,78],[16,10],[16,18],[16,42],[16,50],[16,58],[16,78],[17,10],[17,18],[17,42],[17,50],[17,58],[17,67],[18,10],[18,18],[18,42],[18,50],[18,58],[18,67],[19,10],[19,18],[19,42],[19,50],[19,58],[19,67],[20,10],[20,18],[20,42],[20,50],[20,58],[20,67],[21,10],[21,18],[21,42],[21,50],[21,58],[21,67],[22,10],[22,18],[22,42],[22,50],[22,58],[22,67],[23,10],[23,18],[23,42],[23,50],[23,58],[23,67],[24,10],[24,18],[24,42],[24,50],[24,58],[24,67],[25,10],[25,18],[25,42],[25,50],[25,58],[25,67],[26,10],[26,18],[26,42],[26,50],[26,58],[26,67],[27,10],[27,18],[27,42],[27,50],[27,58],[27,67],[28,10],[28,18],[28,42],[28,50],[28,58],[28,67],[29,10],[29,18],[29,42],[29,50],[29,58],[29,67],[30,10],[30,18],[30,42],[30,50],[30,58],[30,67],[31,10],[31,18],[31,42],[31,50],[31,58],[31,67],[32,10],[32,18],[32,42],[32,50],[32,58],[32,67],[33,10],[33,18],[33,42],[33,50],[33,54],[33,78],[34,10],[34,18],[34,42],[34,50],[34,54],[34,78],[35,10],[35,18],[35,42],[35,50],[35,54],[35,78],[36,10],[36,18],[36,42],[36,50],[36,54],[36,78],[37,10],[37,18],[37,42],[37,50],[37,54],[37,78],[38,10],[38,18],[38,42],[38,50],[38,54],[38,78],[39,10],[39,18],[39,42],[39,50],[39,54],[39,78],[40,10],[40,18],[40,42],[40,50],[40,54],[40,78],[41,10],[41,18],[41,42],[41,50],[41,54],[41,78],[42,10],[42,18],[42,42],[42,50],[42,54],[42,78],[43,10],[43,18],[43,42],[43,50],[43,54],[43,78],[44,10],[44,18],[44,42],[44,50],[44,54],[44,78],[45,10],[45,18],[45,42],[45,50],[45,54],[45,78],[46,10],[46,18],[46,42],[46,50],[46,54],[46,78],[47,10],[47,18],[47,42],[47,50],[47,54],[47,78],[48,10],[48,18],[48,42],[48,50],[48,54],[48,78],[49,10],[49,18],[49,42],[49,50],[49,54],[49,78],[50,10],[50,18],[50,42],[50,50],[50,54],[50,78],[51,10],[51,26],[51,34],[51,50],[52,10],[52,26],[52,34],[52,50],[53,10],[53,26],[53,34],[53,50],[54,10],[54,26],[54,34],[54,50],[55,10],[55,26],[55,34],[55,50],[56,10],[56,26],[56,34],[56,50],[57,10],[57,26],[57,34],[57,50],[58,18],[58,26],[58,34],[58,42],[59,18],[59,26],[59,34],[59,42],[60,18],[60,26],[60,34],[60,42],[61,18],[61,26],[61,34],[61,42]],"H":[[2,16],[2,17],[2,18],[2,19],[2,20],[2,21],[2,22],[2,23],[2,24],[2,25],[2,26],[2,27],[2,28],[2,29],[2,30],[2,31],[2,32],[2,33],[2,34],[2,35],[2,36],[2,37],[2,38],[2,39],[2,40],[2,41],[2,42],[2,43],[2,44],[2,45],[2,46],[2,47],[2,48],[2,49],[2,50],[2,51],[4,10],[4,11],[4,12],[4,13],[4,14],[4,15],[4,52],[4,53],[4,54],[4,55],[4,56],[4,57],[4,58],[4,59],[4,60],[6,44],[6,45],[6,46],[6,47],[6,48],[6,49],[6,61],[6,62],[6,63],[6,64],[6,65],[6,66],[8,44],[8,45],[8,46],[8,47],[8,48],[8,49],[8,63],[8,64],[8,65],[8,66],[8,67],[8,68],[8,69],[8,70],[8,71],[8,72],[8,73],[8,74],[8,75],[8,76],[8,77],[11,18],[11,19],[11,20],[11,21],[11,22],[11,23],[11,24],[11,25],[11,26],[11,27],[11,28],[11,29],[11,30],[11,31],[11,32],[11,33],[11,34],[11,35],[11,36],[11,37],[11,38],[11,39],[11,40],[11,41],[11,50],[11,51],[11,52],[11,53],[11,54],[11,55],[11,56],[11,57],[17,67],[17,68],[17,69],[17,70],[17,71],[17,72],[17,73],[17,74],[17,75],[17,76],[17,77],[33,54],[33,55],[33,56],[33,57],[51,18],[51,19],[51,20],[51,21],[51,22],[51,23],[51,24],[51,25],[51,34],[51,35],[51,36],[51,37],[51,38],[51,39],[51,40],[51,41],[51,54],[51,55],[51,56],[51,57],[51,58],[51,59],[51,60],[51,61],[51,62],[51,63],[51,64],[51,65],[51,66],[51,67],[51,68],[51,69],[51,70],[51,71],[51,72],[51,73],[51,74],[51,75],[51,76],[51,77],[58,10],[58,11],[58,12],[58,13],[58,14],[58,15],[58,16],[58,17],[58,42],[58,43],[58,44],[58,45],[58,46],[58,47],[58,48],[58,49],[62,18],[62,19],[62,20],[62,21],[62,22],[62,23],[62,24],[62,25],[62,34],[62,35],[62,36],[62,37],[62,38],[62,39],[62,40],[62,41]]},"walk":["BF33:BY50"],"blocked":[]},"室內6F":{"maxr":62,"maxc":79,"blocks":[{"label":"女廁","r1":37,"c1":54,"r2":38,"c2":57,"ref":"BB37:BE38","w":4,"h":2},{"label":"茶水間","r1":35,"c1":54,"r2":36,"c2":57,"ref":"BB35:BE36","w":4,"h":2},{"label":"儲藏室","r1":39,"c1":54,"r2":43,"c2":57,"ref":"BB39:BE43","w":4,"h":5},{"label":"電梯","r1":44,"c1":54,"r2":45,"c2":57,"ref":"BB44:BE45","w":4,"h":2},{"label":"樓梯","r1":48,"c1":54,"r2":50,"c2":57,"ref":"BB48:BE50","w":4,"h":3},{"label":"行政大樓六樓會議室","r1":33,"c1":58,"r2":50,"c2":77,"ref":"BF33:BY50","w":20,"h":18},{"label":"男廁","r1":33,"c1":54,"r2":34,"c2":57,"ref":"BB33:BE34","w":4,"h":2}],"W":{"V":[[33,54],[33,78],[34,54],[34,78],[35,54],[35,78],[36,54],[36,78],[37,54],[37,78],[38,54],[38,78],[39,54],[39,78],[40,54],[40,78],[41,54],[41,78],[42,54],[42,78],[43,54],[43,78],[44,54],[44,78],[45,54],[45,78],[46,54],[46,78],[47,54],[47,78],[48,54],[48,78],[49,54],[49,78],[50,54],[50,78]],"H":[[33,54],[33,55],[33,56],[33,57],[33,58],[33,59],[33,60],[33,61],[33,62],[33,63],[33,64],[33,65],[33,66],[33,67],[33,68],[33,69],[33,70],[33,71],[33,72],[33,73],[33,74],[33,75],[33,76],[33,77],[51,54],[51,55],[51,56],[51,57],[51,58],[51,59],[51,60],[51,61],[51,62],[51,63],[51,64],[51,65],[51,66],[51,67],[51,68],[51,69],[51,70],[51,71],[51,72],[51,73],[51,74],[51,75],[51,76],[51,77]]},"walk":["BF33:BY50"],"blocked":[]},"室內7F":{"maxr":62,"maxc":79,"blocks":[{"label":"女廁","r1":37,"c1":54,"r2":38,"c2":57,"ref":"BB37:BE38","w":4,"h":2},{"label":"茶水間","r1":35,"c1":54,"r2":36,"c2":57,"ref":"BB35:BE36","w":4,"h":2},{"label":"儲藏室","r1":39,"c1":54,"r2":43,"c2":57,"ref":"BB39:BE43","w":4,"h":5},{"label":"電梯","r1":44,"c1":54,"r2":45,"c2":57,"ref":"BB44:BE45","w":4,"h":2},{"label":"樓梯","r1":48,"c1":54,"r2":50,"c2":57,"ref":"BB48:BE50","w":4,"h":3},{"label":"行政大樓七樓桌球室","r1":33,"c1":58,"r2":50,"c2":77,"ref":"BF33:BY50","w":20,"h":18},{"label":"男廁","r1":33,"c1":54,"r2":34,"c2":57,"ref":"BB33:BE34","w":4,"h":2}],"W":{"V":[[33,54],[33,78],[34,54],[34,78],[35,54],[35,78],[36,54],[36,78],[37,54],[37,78],[38,54],[38,78],[39,54],[39,78],[40,54],[40,78],[41,54],[41,78],[42,54],[42,78],[43,54],[43,78],[44,54],[44,78],[45,54],[45,78],[46,54],[46,78],[47,54],[47,78],[48,54],[48,78],[49,54],[49,78],[50,54],[50,78]],"H":[[33,54],[33,55],[33,56],[33,57],[33,58],[33,59],[33,60],[33,61],[33,62],[33,63],[33,64],[33,65],[33,66],[33,67],[33,68],[33,69],[33,70],[33,71],[33,72],[33,73],[33,74],[33,75],[33,76],[33,77],[51,54],[51,55],[51,56],[51,57],[51,58],[51,59],[51,60],[51,61],[51,62],[51,63],[51,64],[51,65],[51,66],[51,67],[51,68],[51,69],[51,70],[51,71],[51,72],[51,73],[51,74],[51,75],[51,76],[51,77]]},"walk":["BF33:BY50"],"blocked":[]}},"build":{"活動中心":[[83,51,80],[84,50,80],[85,50,80],[86,50,80],[87,50,80],[88,50,80],[89,50,80],[90,50,80],[91,50,80],[92,50,80],[93,50,80],[94,50,80],[95,50,80],[96,50,80],[97,50,80],[98,50,80],[99,50,80],[100,50,80],[101,50,80],[102,50,80],[103,50,80],[104,50,80],[105,50,80]],"至誠樓":[[2,16,17],[3,16,17],[4,10,17],[5,10,17],[6,10,17],[7,10,17],[8,10,17],[9,10,17],[10,10,17],[11,10,17],[12,10,17],[13,10,17],[14,10,17],[15,10,17],[16,10,17],[17,10,17],[18,10,17],[19,10,17],[20,10,17],[21,10,17],[22,10,17],[23,10,17],[24,10,17],[25,10,17],[26,10,17],[27,10,17],[28,10,17],[29,10,17],[30,10,17],[31,10,17],[32,10,17],[33,10,17],[34,10,17],[35,10,17],[36,10,17],[37,10,17],[38,10,17],[39,10,17],[40,10,17],[41,10,17],[42,10,17],[43,10,17],[44,10,17],[45,10,17],[46,10,17],[47,10,17],[48,10,17],[49,10,17],[50,10,17],[51,10,25],[52,10,25],[53,10,25],[54,10,25],[55,10,25],[56,10,25],[57,10,25],[58,18,25],[59,18,25],[60,18,25],[61,18,25]],"謙融樓":[[11,43,49],[12,42,49],[13,42,49],[14,42,49],[15,42,49],[16,42,49],[17,42,49],[18,42,49],[19,42,49],[20,42,49],[21,42,49],[22,42,49],[23,42,49],[24,42,49],[25,42,49],[26,42,49],[27,42,49],[28,42,49],[29,42,49],[30,42,49],[31,42,49],[32,42,49],[33,42,49],[34,42,49],[35,42,49],[36,42,49],[37,42,49],[38,42,49],[39,42,49],[40,42,49],[41,42,49],[42,42,49],[43,42,49],[44,42,49],[45,42,49],[46,42,49],[47,42,49],[48,42,49],[49,42,49],[50,42,49],[51,34,49],[52,34,49],[53,34,49],[54,34,49],[55,34,49],[56,34,49],[57,34,49],[58,34,41],[59,34,41],[60,34,41],[61,34,41]],"行政大樓":[[33,55,77],[34,54,77],[35,54,77],[36,54,77],[37,54,77],[38,54,77],[39,54,77],[40,54,77],[41,54,77],[42,54,77],[43,54,77],[44,54,77],[45,54,77],[46,54,77],[47,54,77],[48,54,77],[49,54,77],[50,54,77]],"圖書館":[[69,19,41],[70,18,41],[71,18,41],[72,18,41],[73,18,41],[74,18,41],[75,18,41],[76,18,41],[77,18,41],[78,18,41],[79,18,41],[80,18,41],[81,18,41],[82,18,41],[83,18,41],[84,18,41],[85,18,41],[86,18,41]],"中和樓":[[2,18,51],[3,18,51],[4,18,57],[5,18,57],[6,18,57],[7,18,57],[8,18,57],[9,18,57],[10,18,57]],"通達樓":[[4,58,60],[5,58,60],[6,58,66],[7,58,66],[8,58,77],[9,58,77],[10,58,77],[11,58,77],[12,58,77],[13,58,77],[14,58,77],[15,58,77],[16,58,77],[17,58,66],[18,58,66],[19,58,66],[20,58,66],[21,58,66],[22,58,66],[23,58,66],[24,58,66],[25,58,66],[26,58,66],[27,58,66],[28,58,66],[29,58,66],[30,58,66],[31,58,66],[32,58,66]]},"places":[{"key":"掃具室@1F","label":"掃具室","name":"掃具室","bldg":"至誠樓","floor":1,"grid":"base","refs":["J45:O50"],"rects":[[45,10,50,15]],"alias":[],"kind":"處室／專科"},{"key":"102@1F","label":"102","name":"一年二班","bldg":"中和樓","floor":1,"grid":"base","refs":["AD2:AI7"],"rects":[[2,30,7,35]],"alias":["1-2","102","1年2班","一二","一年2班","一年二班"],"kind":"班級"},{"key":"304@1F","label":"304","name":"三年四班","bldg":"謙融樓","floor":1,"grid":"base","refs":["AR33:AW38"],"rects":[[33,44,38,49]],"alias":["3-4","304","3年4班","三四","三年4班","三年四班"],"kind":"班級"},{"key":"學務處教官室@1F","label":"學務處教官室","name":"學務處教官室","bldg":"行政大樓","floor":1,"grid":"base","refs":["BO33:BY50"],"rects":[[33,67,50,77]],"alias":[],"kind":"處室／專科"},{"key":"306@1F","label":"306","name":"三年六班","bldg":"謙融樓","floor":1,"grid":"base","refs":["AR45:AW50"],"rects":[[45,44,50,49]],"alias":["3-6","306","3年6班","三六","三年6班","三年六班"],"kind":"班級"},{"key":"302@1F","label":"302","name":"三年二班","bldg":"謙融樓","floor":1,"grid":"base","refs":["AR17:AW22"],"rects":[[17,44,22,49]],"alias":["3-2","302","3年2班","三二","三年2班","三年二班"],"kind":"班級"},{"key":"301@1F","label":"301","name":"三年一班","bldg":"謙融樓","floor":1,"grid":"base","refs":["AR11:AW16"],"rects":[[11,44,16,49]],"alias":["3-1","301","3年1班","三一","三年1班","三年一班"],"kind":"班級"},{"key":"203@1F","label":"203","name":"二年三班","bldg":"中和樓","floor":1,"grid":"base","refs":["R2:W7"],"rects":[[2,18,7,23]],"alias":["2-3","203","2年3班","二三","二年3班","二年三班"],"kind":"班級"},{"key":"健護教室@1F","label":"健護教室","name":"健護教室","bldg":"至誠樓","floor":1,"grid":"base","refs":["J33:O38"],"rects":[[33,10,38,15]],"alias":[],"kind":"處室／專科"},{"key":"美術教室(三)@1F","label":"美術教室(三)","name":"美術教室(三)","bldg":"至誠樓","floor":1,"grid":"base","refs":["J39:O44"],"rects":[[39,10,44,15]],"alias":[],"kind":"處室／專科"},{"key":"運動防護&器材室@1F","label":"運動防護&器材室","name":"運動防護&器材室","bldg":"至誠樓","floor":1,"grid":"base","refs":["J17:O22"],"rects":[[17,10,22,15]],"alias":[],"kind":"處室／專科"},{"key":"101@1F","label":"101","name":"一年一班","bldg":"中和樓","floor":1,"grid":"base","refs":["X2:AC7"],"rects":[[2,24,7,29]],"alias":["1-1","101","1年1班","一一","一年1班","一年一班"],"kind":"班級"},{"key":"103@1F","label":"103","name":"一年三班","bldg":"中和樓","floor":1,"grid":"base","refs":["AJ2:AO7"],"rects":[[2,36,7,41]],"alias":["1-3","103","1年3班","一三","一年3班","一年三班"],"kind":"班級"},{"key":"303@1F","label":"303","name":"三年三班","bldg":"謙融樓","floor":1,"grid":"base","refs":["AR27:AW32"],"rects":[[27,44,32,49]],"alias":["3-3","303","3年3班","三三","三年3班","三年三班"],"kind":"班級"},{"key":"305@1F","label":"305","name":"三年五班","bldg":"謙融樓","floor":1,"grid":"base","refs":["AR39:AW44"],"rects":[[39,44,44,49]],"alias":["3-5","305","3年5班","三五","三年5班","三年五班"],"kind":"班級"},{"key":"健康中心@1F","label":"健康中心","name":"健康中心","bldg":"行政大樓","floor":1,"grid":"base","refs":["BI33:BN41"],"rects":[[33,61,41,66]],"alias":[],"kind":"處室／專科"},{"key":"國際教育資源中心@1F","label":"國際教育資源中心","name":"國際教育資源中心","bldg":"通達樓","floor":1,"grid":"base","refs":["BI17:BN26"],"rects":[[17,61,26,66]],"alias":[],"kind":"處室／專科"},{"key":"理化教室@1F","label":"理化教室","name":"理化教室","bldg":"中和樓","floor":1,"grid":"base","refs":["AZ4:BH7"],"rects":[[4,52,7,60]],"alias":[],"kind":"處室／專科"},{"key":"體育辦公室@1F","label":"體育辦公室","name":"體育辦公室","bldg":"至誠樓","floor":1,"grid":"base","refs":["J11:O16"],"rects":[[11,10,16,15]],"alias":[],"kind":"處室／專科"},{"key":"軍訓室@1F","label":"軍訓室","name":"軍訓室","bldg":"至誠樓","floor":1,"grid":"base","refs":["J27:O32"],"rects":[[27,10,32,15]],"alias":[],"kind":"處室／專科"},{"key":"潛能教室@1F","label":"潛能教室","name":"潛能教室","bldg":"通達樓","floor":1,"grid":"base","refs":["BO11:BY16"],"rects":[[11,67,16,77]],"alias":[],"kind":"處室／專科"},{"key":"105@2F","label":"105","name":"一年五班","bldg":"至誠樓","floor":2,"grid":"室內2F","refs":["J45:O50"],"rects":[[45,10,50,15]],"alias":["1-5","105","1年5班","一五","一年5班","一年五班"],"kind":"班級"},{"key":"113@2F","label":"113","name":"一年十三班","bldg":"中和樓","floor":2,"grid":"室內2F","refs":["AD2:AI7"],"rects":[[2,30,7,35]],"alias":["1-13","113","1年13班","一年13班","一年十三班"],"kind":"班級"},{"key":"310@2F","label":"310","name":"三年十班","bldg":"謙融樓","floor":2,"grid":"室內2F","refs":["AR33:AW38"],"rects":[[33,44,38,49]],"alias":["3-10","310","3年10班","三十","三年10班","三年十班"],"kind":"班級"},{"key":"教務處@2F","label":"教務處","name":"教務處","bldg":"行政大樓","floor":2,"grid":"室內2F","refs":["BK38:BY50"],"rects":[[38,63,50,77]],"alias":[],"kind":"處室／專科"},{"key":"312@2F","label":"312","name":"三年十二班","bldg":"謙融樓","floor":2,"grid":"室內2F","refs":["AR45:AW50"],"rects":[[45,44,50,49]],"alias":["3-12","312","3年12班","三年12班","三年十二班"],"kind":"班級"},{"key":"308@2F","label":"308","name":"三年八班","bldg":"謙融樓","floor":2,"grid":"室內2F","refs":["AR17:AW22"],"rects":[[17,44,22,49]],"alias":["3-8","308","3年8班","三八","三年8班","三年八班"],"kind":"班級"},{"key":"307@2F","label":"307","name":"三年七班","bldg":"謙融樓","floor":2,"grid":"室內2F","refs":["AR11:AW16"],"rects":[[11,44,16,49]],"alias":["3-7","307","3年7班","三七","三年7班","三年七班"],"kind":"班級"},{"key":"111@2F","label":"111","name":"一年十一班","bldg":"中和樓","floor":2,"grid":"室內2F","refs":["R2:W7"],"rects":[[2,18,7,23]],"alias":["1-11","111","1年11班","一年11班","一年十一班"],"kind":"班級"},{"key":"107@2F","label":"107","name":"一年七班","bldg":"至誠樓","floor":2,"grid":"室內2F","refs":["J33:O38"],"rects":[[33,10,38,15]],"alias":["1-7","107","1年7班","一七","一年7班","一年七班"],"kind":"班級"},{"key":"109@2F","label":"109","name":"一年九班","bldg":"至誠樓","floor":2,"grid":"室內2F","refs":["J17:O22"],"rects":[[17,10,22,15]],"alias":["1-9","109","1年9班","一九","一年9班","一年九班"],"kind":"班級"},{"key":"106@2F","label":"106","name":"一年六班","bldg":"至誠樓","floor":2,"grid":"室內2F","refs":["J39:O44"],"rects":[[39,10,44,15]],"alias":["1-6","106","1年6班","一六","一年6班","一年六班"],"kind":"班級"},{"key":"112@2F","label":"112","name":"一年十二班","bldg":"中和樓","floor":2,"grid":"室內2F","refs":["X2:AC7"],"rects":[[2,24,7,29]],"alias":["1-12","112","1年12班","一年12班","一年十二班"],"kind":"班級"},{"key":"114@2F","label":"114","name":"一年十四班","bldg":"中和樓","floor":2,"grid":"室內2F","refs":["AJ2:AO7"],"rects":[[2,36,7,41]],"alias":["1-14","114","1年14班","一年14班","一年十四班"],"kind":"班級"},{"key":"309@2F","label":"309","name":"三年九班","bldg":"謙融樓","floor":2,"grid":"室內2F","refs":["AR27:AW32"],"rects":[[27,44,32,49]],"alias":["3-9","309","3年9班","三九","三年9班","三年九班"],"kind":"班級"},{"key":"311@2F","label":"311","name":"三年十一班","bldg":"謙融樓","floor":2,"grid":"室內2F","refs":["AR39:AW44"],"rects":[[39,44,44,49]],"alias":["3-11","311","3年11班","三年11班","三年十一班"],"kind":"班級"},{"key":"生物實驗室(一)@2F","label":"生物實驗室(一)","name":"生物實驗室(一)","bldg":"通達樓","floor":2,"grid":"室內2F","refs":["BI17:BN26"],"rects":[[17,61,26,66]],"alias":[],"kind":"處室／專科"},{"key":"設備組@2F","label":"設備組","name":"設備組","bldg":"中和樓","floor":2,"grid":"室內2F","refs":["AZ4:BH7"],"rects":[[4,52,7,60]],"alias":[],"kind":"處室／專科"},{"key":"110@2F","label":"110","name":"一年十班","bldg":"至誠樓","floor":2,"grid":"室內2F","refs":["J11:O16"],"rects":[[11,10,16,15]],"alias":["1-10","110","1年10班","一十","一年10班","一年十班"],"kind":"班級"},{"key":"108@2F","label":"108","name":"一年八班","bldg":"至誠樓","floor":2,"grid":"室內2F","refs":["J27:O32"],"rects":[[27,10,32,15]],"alias":["1-8","108","1年8班","一八","一年8班","一年八班"],"kind":"班級"},{"key":"輔導處@2F","label":"輔導處","name":"輔導處","bldg":"行政大樓","floor":2,"grid":"室內2F","refs":["BI33:BY37"],"rects":[[33,61,37,77]],"alias":[],"kind":"處室／專科"},{"key":"生物實驗室(二)@2F","label":"生物實驗室(二)","name":"生物實驗室(二)","bldg":"通達樓","floor":2,"grid":"室內2F","refs":["BO11:BY16"],"rects":[[11,67,16,77]],"alias":[],"kind":"處室／專科"},{"key":"117@3F","label":"117","name":"一年十七班","bldg":"中和樓","floor":3,"grid":"室內3F","refs":["AD2:AI7"],"rects":[[2,30,7,35]],"alias":["1-17","117","1年17班","一年17班","一年十七班"],"kind":"班級"},{"key":"104@3F","label":"104","name":"一年四班","bldg":"至誠樓","floor":3,"grid":"室內3F","refs":["J45:O50"],"rects":[[45,10,50,15]],"alias":["1-4","104","1年4班","一四","一年4班","一年四班"],"kind":"班級"},{"key":"316@3F","label":"316","name":"三年十六班","bldg":"謙融樓","floor":3,"grid":"室內3F","refs":["AR33:AW38"],"rects":[[33,44,38,49]],"alias":["3-16","316","3年16班","三年16班","三年十六班"],"kind":"班級"},{"key":"總務處@3F","label":"總務處","name":"總務處","bldg":"行政大樓","floor":3,"grid":"室內3F","refs":["BK38:BY43"],"rects":[[38,63,43,77]],"alias":[],"kind":"處室／專科"},{"key":"318@3F","label":"318","name":"三年十八班","bldg":"謙融樓","floor":3,"grid":"室內3F","refs":["AR45:AW50"],"rects":[[45,44,50,49]],"alias":["3-18","318","3年18班","三年18班","三年十八班"],"kind":"班級"},{"key":"校長室@3F","label":"校長室","name":"校長室","bldg":"行政大樓","floor":3,"grid":"室內3F","refs":["BK44:BY47"],"rects":[[44,63,47,77]],"alias":[],"kind":"處室／專科"},{"key":"314@3F","label":"314","name":"三年十四班","bldg":"謙融樓","floor":3,"grid":"室內3F","refs":["AR17:AW22"],"rects":[[17,44,22,49]],"alias":["3-14","314","3年14班","三年14班","三年十四班"],"kind":"班級"},{"key":"313@3F","label":"313","name":"三年十三班","bldg":"謙融樓","floor":3,"grid":"室內3F","refs":["AR11:AW16"],"rects":[[11,44,16,49]],"alias":["3-13","313","3年13班","三年13班","三年十三班"],"kind":"班級"},{"key":"115@3F","label":"115","name":"一年十五班","bldg":"中和樓","floor":3,"grid":"室內3F","refs":["R2:W7"],"rects":[[2,18,7,23]],"alias":["1-15","115","1年15班","一年15班","一年十五班"],"kind":"班級"},{"key":"202@3F","label":"202","name":"二年二班","bldg":"至誠樓","floor":3,"grid":"室內3F","refs":["J33:O38"],"rects":[[33,10,38,15]],"alias":["2-2","202","2年2班","二二","二年2班","二年二班"],"kind":"班級"},{"key":"201@3F","label":"201","name":"二年一班","bldg":"至誠樓","floor":3,"grid":"室內3F","refs":["J39:O44"],"rects":[[39,10,44,15]],"alias":["2-1","201","2年1班","二一","二年1班","二年一班"],"kind":"班級"},{"key":"205@3F","label":"205","name":"二年五班","bldg":"至誠樓","floor":3,"grid":"室內3F","refs":["J17:O22"],"rects":[[17,10,22,15]],"alias":["2-5","205","2年5班","二五","二年5班","二年五班"],"kind":"班級"},{"key":"116@3F","label":"116","name":"一年十六班","bldg":"中和樓","floor":3,"grid":"室內3F","refs":["X2:AC7"],"rects":[[2,24,7,29]],"alias":["1-16","116","1年16班","一年16班","一年十六班"],"kind":"班級"},{"key":"人事室@3F","label":"人事室","name":"人事室","bldg":"行政大樓","floor":3,"grid":"室內3F","refs":["BV33:BY37"],"rects":[[33,74,37,77]],"alias":[],"kind":"處室／專科"},{"key":"簡報室@3F","label":"簡報室","name":"簡報室","bldg":"行政大樓","floor":3,"grid":"室內3F","refs":["BI33:BQ37"],"rects":[[33,61,37,69]],"alias":[],"kind":"處室／專科"},{"key":"118@3F","label":"118","name":"一年十八班","bldg":"中和樓","floor":3,"grid":"室內3F","refs":["AJ2:AO7"],"rects":[[2,36,7,41]],"alias":["1-18","118","1年18班","一年18班","一年十八班"],"kind":"班級"},{"key":"315@3F","label":"315","name":"三年十五班","bldg":"謙融樓","floor":3,"grid":"室內3F","refs":["AR27:AW32"],"rects":[[27,44,32,49]],"alias":["3-15","315","3年15班","三年15班","三年十五班"],"kind":"班級"},{"key":"317@3F","label":"317","name":"三年十七班","bldg":"謙融樓","floor":3,"grid":"室內3F","refs":["AR39:AW44"],"rects":[[39,44,44,49]],"alias":["3-17","317","3年17班","三年17班","三年十七班"],"kind":"班級"},{"key":"化學實驗室(一)@3F","label":"化學實驗室(一)","name":"化學實驗室(一)","bldg":"通達樓","floor":3,"grid":"室內3F","refs":["BI17:BN26"],"rects":[[17,61,26,66]],"alias":[],"kind":"處室／專科"},{"key":"視聽教室@3F","label":"視聽教室","name":"視聽教室","bldg":"中和樓","floor":3,"grid":"室內3F","refs":["AZ4:BH7"],"rects":[[4,52,7,60]],"alias":[],"kind":"處室／專科"},{"key":"206@3F","label":"206","name":"二年六班","bldg":"至誠樓","floor":3,"grid":"室內3F","refs":["J11:O16"],"rects":[[11,10,16,15]],"alias":["2-6","206","2年6班","二六","二年6班","二年六班"],"kind":"班級"},{"key":"204@3F","label":"204","name":"二年四班","bldg":"至誠樓","floor":3,"grid":"室內3F","refs":["J27:O32"],"rects":[[27,10,32,15]],"alias":["2-4","204","2年4班","二四","二年4班","二年四班"],"kind":"班級"},{"key":"會計室@3F","label":"會計室","name":"會計室","bldg":"行政大樓","floor":3,"grid":"室內3F","refs":["BF48:BO50"],"rects":[[48,58,50,67]],"alias":[],"kind":"處室／專科"},{"key":"化學實驗室(二)@3F","label":"化學實驗室(二)","name":"化學實驗室(二)","bldg":"通達樓","floor":3,"grid":"室內3F","refs":["BO11:BY16"],"rects":[[11,67,16,77]],"alias":[],"kind":"處室／專科"},{"key":"207@4F","label":"207","name":"二年七班","bldg":"至誠樓","floor":4,"grid":"室內4F","refs":["J45:O50"],"rects":[[45,10,50,15]],"alias":["2-7","207","2年7班","二七","二年7班","二年七班"],"kind":"班級"},{"key":"專任辦公室@4F","label":"專任辦公室","name":"專任辦公室","bldg":"中和樓","floor":4,"grid":"室內4F","refs":["AD2:AO7"],"rects":[[2,30,7,41]],"alias":[],"kind":"處室／專科"},{"key":"國際教室@4F","label":"國際教室","name":"國際教室","bldg":"中和樓","floor":4,"grid":"室內4F","refs":["R2:W7"],"rects":[[2,18,7,23]],"alias":[],"kind":"處室／專科"},{"key":"209@4F","label":"209","name":"二年九班","bldg":"至誠樓","floor":4,"grid":"室內4F","refs":["J33:O38"],"rects":[[33,10,38,15]],"alias":["2-9","209","2年9班","二九","二年9班","二年九班"],"kind":"班級"},{"key":"208@4F","label":"208","name":"二年八班","bldg":"至誠樓","floor":4,"grid":"室內4F","refs":["J39:O44"],"rects":[[39,10,44,15]],"alias":["2-8","208","2年8班","二八","二年8班","二年八班"],"kind":"班級"},{"key":"211@4F","label":"211","name":"二年十一班","bldg":"至誠樓","floor":4,"grid":"室內4F","refs":["J17:O22"],"rects":[[17,10,22,15]],"alias":["2-11","211","2年11班","二年11班","二年十一班"],"kind":"班級"},{"key":"寰宇教室@4F","label":"寰宇教室","name":"寰宇教室","bldg":"中和樓","floor":4,"grid":"室內4F","refs":["X2:AC7"],"rects":[[2,24,7,29]],"alias":[],"kind":"處室／專科"},{"key":"生科教室@4F","label":"生科教室","name":"生科教室","bldg":"謙融樓","floor":4,"grid":"室內4F","refs":["AR11:AW22"],"rects":[[11,44,22,49]],"alias":[],"kind":"處室／專科"},{"key":"商談室@4F","label":"商談室","name":"商談室","bldg":"行政大樓","floor":4,"grid":"室內4F","refs":["BF48:BJ50"],"rects":[[48,58,50,62]],"alias":[],"kind":"處室／專科"},{"key":"導師辦公室@4F","label":"導師辦公室","name":"導師辦公室","bldg":"行政大樓","floor":4,"grid":"室內4F","refs":["BK33:BY50"],"rects":[[33,63,50,77]],"alias":[],"kind":"處室／專科"},{"key":"創客工廠@4F","label":"創客工廠","name":"創客工廠","bldg":"謙融樓","floor":4,"grid":"室內4F","refs":["AR23:AW26"],"rects":[[23,44,26,49]],"alias":[],"kind":"處室／專科"},{"key":"物理實驗室(一)@4F","label":"物理實驗室(一)","name":"物理實驗室(一)","bldg":"通達樓","floor":4,"grid":"室內4F","refs":["BI17:BN26"],"rects":[[17,61,26,66]],"alias":[],"kind":"處室／專科"},{"key":"電腦教室(三)@4F","label":"電腦教室(三)","name":"電腦教室(三)","bldg":"中和樓","floor":4,"grid":"室內4F","refs":["AZ4:BH7"],"rects":[[4,52,7,60]],"alias":[],"kind":"處室／專科"},{"key":"電腦教室(二)@4F","label":"電腦教室(二)","name":"電腦教室(二)","bldg":"謙融樓","floor":4,"grid":"室內4F","refs":["AR39:AW50"],"rects":[[39,44,50,49]],"alias":[],"kind":"處室／專科"},{"key":"212@4F","label":"212","name":"二年十二班","bldg":"至誠樓","floor":4,"grid":"室內4F","refs":["J11:O16"],"rects":[[11,10,16,15]],"alias":["2-12","212","2年12班","二年12班","二年十二班"],"kind":"班級"},{"key":"210@4F","label":"210","name":"二年十班","bldg":"至誠樓","floor":4,"grid":"室內4F","refs":["J27:O32"],"rects":[[27,10,32,15]],"alias":["2-10","210","2年10班","二十","二年10班","二年十班"],"kind":"班級"},{"key":"電腦教室(一)@4F","label":"電腦教室(一)","name":"電腦教室(一)","bldg":"謙融樓","floor":4,"grid":"室內4F","refs":["AR27:AW38"],"rects":[[27,44,38,49]],"alias":[],"kind":"處室／專科"},{"key":"物理實驗室(二)@4F","label":"物理實驗室(二)","name":"物理實驗室(二)","bldg":"通達樓","floor":4,"grid":"室內4F","refs":["BO11:BY16"],"rects":[[11,67,16,77]],"alias":[],"kind":"處室／專科"},{"key":"213@5F","label":"213","name":"二年十三班","bldg":"至誠樓","floor":5,"grid":"室內5F","refs":["J45:O50"],"rects":[[45,10,50,15]],"alias":["2-13","213","2年13班","二年13班","二年十三班"],"kind":"班級"},{"key":"社會科教室@5F","label":"社會科教室","name":"社會科教室","bldg":"中和樓","floor":5,"grid":"室內5F","refs":["AD2:AO7"],"rects":[[2,30,7,41]],"alias":[],"kind":"處室／專科"},{"key":"音樂教室(二)@5F","label":"音樂教室(二)","name":"音樂教室(二)","bldg":"謙融樓","floor":5,"grid":"室內5F","refs":["AR45:AW50"],"rects":[[45,44,50,49]],"alias":[],"kind":"處室／專科"},{"key":"地科教室@5F","label":"地科教室","name":"地科教室","bldg":"謙融樓","floor":5,"grid":"室內5F","refs":["AR18:AW26"],"rects":[[18,44,26,49]],"alias":[],"kind":"處室／專科"},{"key":"美術教室(一)@5F","label":"美術教室(一)","name":"美術教室(一)","bldg":"中和樓","floor":5,"grid":"室內5F","refs":["R2:W7"],"rects":[[2,18,7,23]],"alias":[],"kind":"處室／專科"},{"key":"215@5F","label":"215","name":"二年十五班","bldg":"至誠樓","floor":5,"grid":"室內5F","refs":["J33:O38"],"rects":[[33,10,38,15]],"alias":["2-15","215","2年15班","二年15班","二年十五班"],"kind":"班級"},{"key":"214@5F","label":"214","name":"二年十四班","bldg":"至誠樓","floor":5,"grid":"室內5F","refs":["J39:O44"],"rects":[[39,10,44,15]],"alias":["2-14","214","2年14班","二年14班","二年十四班"],"kind":"班級"},{"key":"217@5F","label":"217","name":"二年十七班","bldg":"至誠樓","floor":5,"grid":"室內5F","refs":["J17:O22"],"rects":[[17,10,22,15]],"alias":["2-17","217","2年17班","二年17班","二年十七班"],"kind":"班級"},{"key":"美術教室(二)@5F","label":"美術教室(二)","name":"美術教室(二)","bldg":"中和樓","floor":5,"grid":"室內5F","refs":["X2:AC7"],"rects":[[2,24,7,29]],"alias":[],"kind":"處室／專科"},{"key":"音樂教室(一)@5F","label":"音樂教室(一)","name":"音樂教室(一)","bldg":"謙融樓","floor":5,"grid":"室內5F","refs":["AR39:AW44"],"rects":[[39,44,44,49]],"alias":[],"kind":"處室／專科"},{"key":"家政教室@5F","label":"家政教室","name":"家政教室","bldg":"通達樓","floor":5,"grid":"室內5F","refs":["BI17:BN26"],"rects":[[17,61,26,66]],"alias":[],"kind":"處室／專科"},{"key":"電腦教室(四)@5F","label":"電腦教室(四)","name":"電腦教室(四)","bldg":"中和樓","floor":5,"grid":"室內5F","refs":["AZ4:BH7"],"rects":[[4,52,7,60]],"alias":[],"kind":"處室／專科"},{"key":"星象館@5F","label":"星象館","name":"星象館","bldg":"謙融樓","floor":5,"grid":"室內5F","refs":["AR11:AW17"],"rects":[[11,44,17,49]],"alias":[],"kind":"處室／專科"},{"key":"218@5F","label":"218","name":"二年十八班","bldg":"至誠樓","floor":5,"grid":"室內5F","refs":["J11:O16"],"rects":[[11,10,16,15]],"alias":["2-18","218","2年18班","二年18班","二年十八班"],"kind":"班級"},{"key":"216@5F","label":"216","name":"二年十六班","bldg":"至誠樓","floor":5,"grid":"室內5F","refs":["J27:O32"],"rects":[[27,10,32,15]],"alias":["2-16","216","2年16班","二年16班","二年十六班"],"kind":"班級"},{"key":"儲藏室@5F","label":"儲藏室","name":"儲藏室","bldg":"行政大樓","floor":5,"grid":"室內5F","refs":["BB39:BE43"],"rects":[[39,54,43,57]],"alias":[],"kind":"處室／專科"},{"key":"韻律教室@5F","label":"韻律教室","name":"韻律教室","bldg":"謙融樓","floor":5,"grid":"室內5F","refs":["AR27:AW38"],"rects":[[27,44,38,49]],"alias":[],"kind":"處室／專科"},{"key":"自主學習空間@5F","label":"自主學習空間","name":"自主學習空間","bldg":"行政大樓","floor":5,"grid":"室內5F","refs":["BF33:BY50"],"rects":[[33,58,50,77]],"alias":[],"kind":"處室／專科"},{"key":"團輔室@5F","label":"團輔室","name":"團輔室","bldg":"通達樓","floor":5,"grid":"室內5F","refs":["BO11:BY16"],"rects":[[11,67,16,77]],"alias":[],"kind":"處室／專科"},{"key":"儲藏室@6F","label":"儲藏室","name":"儲藏室","bldg":"行政大樓","floor":6,"grid":"室內6F","refs":["BB39:BE43"],"rects":[[39,54,43,57]],"alias":[],"kind":"處室／專科"},{"key":"行政大樓六樓會議室@6F","label":"行政大樓六樓會議室","name":"行政大樓六樓會議室","bldg":"行政大樓","floor":6,"grid":"室內6F","refs":["BF33:BY50"],"rects":[[33,58,50,77]],"alias":[],"kind":"處室／專科"},{"key":"儲藏室@7F","label":"儲藏室","name":"儲藏室","bldg":"行政大樓","floor":7,"grid":"室內7F","refs":["BB39:BE43"],"rects":[[39,54,43,57]],"alias":[],"kind":"處室／專科"},{"key":"行政大樓七樓桌球室@7F","label":"行政大樓七樓桌球室","name":"行政大樓七樓桌球室","bldg":"行政大樓","floor":7,"grid":"室內7F","refs":["BF33:BY50"],"rects":[[33,58,50,77]],"alias":[],"kind":"處室／專科"},{"key":"活動中心@1F","label":"活動中心","name":"活動中心","bldg":"活動中心","floor":1,"grid":"base","refs":["AX83:CB105"],"rects":[[83,50,105,80]],"alias":[],"kind":"場館"},{"key":"圖書館@1F","label":"圖書館","name":"圖書館","bldg":"圖書館","floor":1,"grid":"base","refs":["R69:AO86"],"rects":[[69,18,86,41]],"alias":[],"kind":"場館"},{"key":"校門口@1F","label":"校門口","name":"校門口","bldg":"校門口","floor":1,"grid":"base","refs":["CH58:CM73"],"rects":[[58,86,73,91]],"alias":["大門","正門"],"kind":"場館","gate":true}],"starts":[{"id":"gate","key":"校門口@1F","name":"校門口"},{"id":"hall","key":"活動中心@1F","name":"活動中心"},{"id":"self5","key":"自主學習空間@5F","name":"行政 5F 自主學習空間"},{"id":"meet6","key":"行政大樓六樓會議室@6F","name":"行政 6F 會議室"}],"baseGrid":"base","floors":[1,2,3,4,5,6,7],"gridFloor":{"base":1,"室內2F":2,"室內3F":3,"室內4F":4,"室內5F":5,"室內6F":6,"室內7F":7}};
+
+/* 校園路徑計算：把 build.py 的邏輯搬到瀏覽器，任意起點都能即時算 */
+const TURN_COST = 2.5, OUTDOOR_COST = 3.0;
+
+function makeRouter(D){
+  const K  = (r,c) => (r << 8) | c;          // 欄最多 255，夠用
+  const KR = k => k >> 8, KC = k => k & 255;
+
+  /* 建築區域：RLE 展開 */
+  const BUILD = {}, INDOOR = new Set();
+  for(const [name, runs] of Object.entries(D.build)){
+    const s = new Set();
+    for(const [r, a, b] of runs) for(let c = a; c <= b; c++){ s.add(K(r,c)); INDOOR.add(K(r,c)); }
+    BUILD[name] = s;
+  }
+
+  const G = {};
+  for(const [key, g] of Object.entries(D.grids)){
+    const walk = new Set(g.walk);
+    const occ = new Map();                    // 可通行判斷用（放行沒填字與可穿越）
+    const occAll = new Map();                 // 判斷「在哪個區塊裡」用
+    g.blocks.forEach((b, i)=>{
+      for(let r = b.r1; r <= b.r2; r++) for(let c = b.c1; c <= b.c2; c++){
+        occAll.set(K(r,c), i);
+        if(b.label && !walk.has(b.ref)) occ.set(K(r,c), i);
+      }
+    });
+    if(key === D.baseGrid){                   // 校門口是通道不是障礙
+      const gate = g.blocks.find(b => b.label === '校門口');
+      if(gate) for(let r = gate.r1; r <= gate.r2; r++)
+        for(let c = gate.c1; c <= gate.c2; c++) occ.delete(K(r,c));
+    }
+    g.blocked.forEach(([r,c]) => occ.set(K(r,c), -1));   // x 禁行格
+    const V = new Set(g.W.V.map(([r,c]) => K(r,c)));
+    const H = new Set(g.W.H.map(([r,c]) => K(r,c)));
+    G[key] = {key, maxr:g.maxr, maxc:g.maxc, blocks:g.blocks, occ, occAll, V, H, walk};
+  }
+
+  const pass = (g, r, c, dr, dc) =>            // 兩格之間有沒有牆
+      dc ===  1 ? !g.V.has(K(r, c+1))
+    : dc === -1 ? !g.V.has(K(r, c))
+    : dr ===  1 ? !g.H.has(K(r+1, c))
+    :             !g.H.has(K(r, c));
+
+  /* 每格離最近障礙多遠，用來把路線推向走道中線 */
+  function clearance(g){
+    if(g.clr) return g.clr;
+    const clr = new Map(), q = [];
+    for(let r = 1; r <= g.maxr; r++) for(let c = 1; c <= g.maxc; c++){
+      const k = K(r,c);
+      if(g.occ.has(k)) continue;
+      let near = false;
+      for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nr = r+dr, nc = c+dc;
+        if(nr < 1 || nr > g.maxr || nc < 1 || nc > g.maxc
+           || g.occ.has(K(nr,nc)) || !pass(g,r,c,dr,dc)){ near = true; break; }
+      }
+      if(near){ clr.set(k,1); q.push(k); }
+    }
+    for(let i = 0; i < q.length; i++){
+      const k = q[i], r = KR(k), c = KC(k), d = clr.get(k);
+      for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nr = r+dr, nc = c+dc;
+        if(nr < 1 || nr > g.maxr || nc < 1 || nc > g.maxc) continue;
+        const nk = K(nr,nc);
+        if(g.occ.has(nk) || clr.has(nk) || !pass(g,r,c,dr,dc)) continue;
+        clr.set(nk, d+1); q.push(nk);
+      }
+    }
+    g.clr = clr; return clr;
+  }
+
+  const cmpKey = (a, b)=>{ for(let i = 0; i < a.length; i++) if(a[i] !== b[i]) return a[i] - b[i]; return 0; };
+  const DIRS = [[1,0],[-1,0],[0,1],[0,-1]];
+  const dirIdx = (dr,dc) => dr === 1 ? 0 : dr === -1 ? 1 : dc === 1 ? 2 : 3;
+
+  function dijkstra(gk, startKs, goalKs, limit, avoidOutdoor){
+    const g = G[gk], clr = clearance(g);
+    const starts = [...startKs].filter(k => !g.occ.has(k) && (!limit || limit.has(k)));
+    const goals  = new Set([...goalKs].filter(k => !g.occ.has(k) && (!limit || limit.has(k))));
+    if(!starts.length || !goals.size) return null;
+
+    let gr = 0, gc = 0;
+    goals.forEach(k=>{ gr += KR(k); gc += KC(k); });
+    gr /= goals.size; gc /= goals.size;
+
+    const best = new Map(), prev = new Map();
+    const heap = [];                                   // [cost, state]
+    const push = (cost, st)=>{
+      heap.push([cost, st]); let i = heap.length - 1;
+      while(i > 0){ const p = (i-1) >> 1;
+        if(heap[p][0] <= heap[i][0]) break;
+        [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; }
+    };
+    const pop = ()=>{
+      const top = heap[0], last = heap.pop();
+      if(heap.length){ heap[0] = last; let i = 0;
+        for(;;){ const l = 2*i+1, r = l+1; let m = i;
+          if(l < heap.length && heap[l][0] < heap[m][0]) m = l;
+          if(r < heap.length && heap[r][0] < heap[m][0]) m = r;
+          if(m === i) break;
+          [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } }
+      return top;
+    };
+    for(const s of starts){
+      const dr = gr - KR(s), dc = gc - KC(s);
+      const lead = Math.abs(dc) >= Math.abs(dr) ? (dc > 0 ? [0,1] : [0,-1])
+                                                : (dr > 0 ? [1,0] : [-1,0]);
+      const st = s * 4 + dirIdx(lead[0], lead[1]);
+      best.set(st, 0); push(0, st);
+    }
+    while(heap.length){
+      const [dd, st] = pop();
+      if(dd > (best.get(st) ?? Infinity) + 1e-9) continue;
+      const k = st >> 2, pd = st & 3;
+      if(goals.has(k)){
+        const out = [k]; let cur = st;
+        while(prev.has(cur)){ cur = prev.get(cur); out.push(cur >> 2); }
+        return out.reverse().map(x => [KR(x), KC(x)]);
+      }
+      const r = KR(k), c = KC(k);
+      for(let di = 0; di < 4; di++){
+        const [dr,dc] = DIRS[di];
+        const nr = r+dr, nc = c+dc;
+        if(nr < 1 || nr > g.maxr || nc < 1 || nc > g.maxc) continue;
+        const nk = K(nr,nc);
+        if(g.occ.has(nk) || !pass(g,r,c,dr,dc)) continue;
+        if(limit && !limit.has(nk)) continue;
+        let nd = dd + 1 + Math.max(0, 3 - (clr.get(nk) ?? 1)) * 0.35;
+        if(di !== pd) nd += TURN_COST;
+        if(avoidOutdoor && !INDOOR.has(nk)) nd += OUTDOOR_COST;
+        const ns = nk * 4 + di;
+        if(nd < (best.get(ns) ?? Infinity) - 1e-9){
+          best.set(ns, nd); prev.set(ns, st); push(nd, ns);
+        }
+      }
+    }
+    return null;
+  }
+
+  /* 區塊四周可以站的格子 */
+  function ring(gk, rect, limit){
+    const g = G[gk], out = new Set();
+    const [r1,c1,r2,c2] = rect;
+    for(let r = r1-1; r <= r2+1; r++) for(let c = c1-1; c <= c2+1; c++){
+      if(r < 1 || r > g.maxr || c < 1 || c > g.maxc) continue;
+      const k = K(r,c);
+      if(g.occ.has(k)) continue;
+      if(limit && !limit.has(k)) continue;
+      out.add(k);
+    }
+    return out;
+  }
+  /* 區塊的「入口」格子：緊貼區塊某一邊、而且那一邊沒有牆（粗黑線），不含斜角 */
+  function doorRing(gk, rect, limit){
+    const g = G[gk], out = new Set();
+    const [r1,c1,r2,c2] = rect;
+    const add = (r, c, dr, dc)=>{          // (r,c) 是區塊外那格，往 (dr,dc) 走一步會進到區塊
+      if(r < 1 || r > g.maxr || c < 1 || c > g.maxc) return;
+      const k = K(r,c);
+      if(g.occ.has(k) || (limit && !limit.has(k))) return;
+      if(!pass(g, r, c, dr, dc)) return;
+      out.add(k);
+    };
+    for(let c = c1; c <= c2; c++){ add(r1-1, c, 1, 0); add(r2+1, c, -1, 0); }
+    for(let r = r1; r <= r2; r++){ add(r, c1-1, 0, 1); add(r, c2+1, 0, -1); }
+    return out;
+  }
+  const ringAll = (gk, rects, limit)=>{
+    const s = new Set();
+    rects.forEach(rc => ring(gk, rc, limit).forEach(k => s.add(k)));
+    return s;
+  };
+  function ownCells(rects){
+    const s = new Set();
+    for(const [name, cells] of Object.entries(BUILD)){
+      let hit = false;
+      for(const [r1,c1,r2,c2] of rects){
+        for(let r = r1; r <= r2 && !hit; r++) for(let c = c1; c <= c2; c++)
+          if(cells.has(K(r,c))){ hit = true; break; }
+        if(hit) break;
+      }
+      if(hit) cells.forEach(k => s.add(k));
+    }
+    return s;
+  }
+  const vertsOf = gk => G[gk].blocks.filter(b =>
+      b.label && (b.label.indexOf('樓梯') >= 0 || b.label.indexOf('電梯') >= 0));
+  const kindOfVert = b => b.label.indexOf('電梯') >= 0 ? '電梯' : '樓梯';
+  const floorOfGrid = gk => D.gridFloor[gk] || 1;
+
+  /* 出發點可以站的格子：校門口用正中央那一格，其餘用區塊外圍 */
+  function startCells(from){
+    const g = G[from.grid];
+    if(from.gate){
+      const [r1,c1,r2,c2] = from.rects[0];
+      const mr = (r1+r2)/2, mc = (c1+c2)/2, clr = clearance(g);
+      let bk = null, bd = Infinity;
+      for(let r = r1; r <= r2; r++) for(let c = c1; c <= c2; c++){
+        const k = K(r,c);
+        if(g.occ.has(k) || (clr.get(k) ?? 0) < 2) continue;
+        const d = (r-mr)**2 + (c-mc)**2;
+        if(d < bd){ bd = d; bk = k; }
+      }
+      if(bk !== null) return new Set([bk]);
+    }
+    const own = from.grid === D.baseGrid ? null : ownCells(from.rects);
+    const s = ringAll(from.grid, from.rects, own);
+    return s.size ? s : ringAll(from.grid, from.rects, null);
+  }
+
+  /* 主函數：from 與 to 都是 {grid, rects}，to 另外帶 place 資訊 */
+  function route(from, to, mode){
+    const avoid = mode === 'indoor';
+    const cells = ownCells(to.rects);
+    const cellSet = cells.size ? cells : null;
+
+    if(from.grid === to.grid){
+      const sameBlock = from.rects.some(a => to.rects.some(b =>
+        a[0]===b[0] && a[1]===b[1] && a[2]===b[2] && a[3]===b[3]));
+      if(sameBlock){
+        const r = [...ring(from.grid, from.rects[0])];
+        const here = r.length ? [KR(r[(r.length/2)|0]), KC(r[(r.length/2)|0])]
+                              : [from.rects[0][0], from.rects[0][1]];
+        return {legs:[{grid:from.grid, path:[here]}], via:null, same:true};
+      }
+      const lim = from.grid === D.baseGrid ? null : INDOOR;
+      let goals = ringAll(to.grid, to.rects, cellSet);
+      if(!goals.size) goals = ringAll(to.grid, to.rects, null);
+      const path = dijkstra(from.grid, startCells(from), goals, lim, avoid);
+      if(!path) return null;
+      return {legs:[{grid:from.grid, path}], via:null};
+    }
+
+    /* 跨樓層：起點層走到垂直動線，再在目標層走到目的地 */
+    const haveAtStart = new Set(vertsOf(from.grid).map(b => b.r1 + ',' + b.c1));
+    let verts = vertsOf(to.grid).filter(b => haveAtStart.has(b.r1 + ',' + b.c1));
+    let limit2;
+    if(mode === 'lift'){
+      verts = verts.filter(b => kindOfVert(b) === '電梯');
+      limit2 = INDOOR;
+    } else if(mode === 'indoor' || from.grid !== D.baseGrid){
+      limit2 = INDOOR;
+    } else {
+      verts = verts.filter(b => {
+        for(let r = b.r1; r <= b.r2; r++) for(let c = b.c1; c <= b.c2; c++)
+          if(cells.has(K(r,c))) return true;
+        return false;
+      });
+      limit2 = cellSet;
+    }
+    if(!verts.length) return null;
+
+    let best = null;
+    for(const v of verts){
+      const vr = [v.r1, v.c1, v.r2, v.c2];
+      let vcells = cells;
+      if(mode === 'lift' || mode === 'indoor' || from.grid !== D.baseGrid){
+        vcells = ownCells([vr]);
+        if(!vcells.size) continue;
+      }
+      const lim1 = from.grid === D.baseGrid ? null : INDOOR;
+      let door1 = doorRing(from.grid, vr, vcells);
+      if(!door1.size) door1 = ring(from.grid, vr, vcells);
+      const p1 = dijkstra(from.grid, startCells(from), door1, lim1, avoid);
+      if(!p1) continue;
+      const entry = K(p1[p1.length-1][0], p1[p1.length-1][1]);
+      let r2ing = doorRing(to.grid, vr, vcells);
+      if(!r2ing.size) r2ing = ring(to.grid, vr, vcells);
+      if(!r2ing.size) continue;
+      const exact = r2ing.has(entry);
+      let s2;
+      if(exact) s2 = new Set([entry]);
+      else {
+        let bk = null, bd = Infinity;
+        r2ing.forEach(k=>{
+          const d = (KR(k)-KR(entry))**2 + (KC(k)-KC(entry))**2;
+          if(d < bd){ bd = d; bk = k; }
+        });
+        s2 = new Set([bk]);
+      }
+      let goals2 = ringAll(to.grid, to.rects, cellSet);
+      if(!goals2.size) goals2 = ringAll(to.grid, to.rects, null);
+      // 目的地若在戶外（活動中心、圖書館、校門口），第二段就不能限制在室內
+      let lim2 = limit2;
+      if(lim2){ let ok = false; goals2.forEach(k=>{ if(lim2.has(k)) ok = true; }); if(!ok) lim2 = null; }
+      const p2 = dijkstra(to.grid, s2, goals2, lim2, avoid);
+      if(!p2) continue;
+      const out1 = mode === 'indoor'
+        ? p1.reduce((n,[r,c]) => n + (INDOOR.has(K(r,c)) ? 0 : 1), 0) : 0;
+      const key = [exact ? 0 : 1, mode === 'indoor' ? out1 : 0, p1.length + p2.length];
+      // 注意：JS 的陣列 < 會轉成字串比較（"0,0,88" > "0,0,171"），必須逐項比數值
+      if(!best || cmpKey(key, best.key) < 0) best = {key, p1, p2, kind: kindOfVert(v)};
+    }
+    if(!best) return null;
+    return {legs:[{grid:from.grid, path:best.p1}, {grid:to.grid, path:best.p2}],
+            via:best.kind};
+  }
+
+  return {route, G, BUILD, INDOOR, floorOfGrid};
+}
+
+
+
+
+/* 男女廁、無障礙、電梯、樓梯用圖示，不用文字 */
+const ICONS = {
+  stair: '<path d="M2.5 21h4.6v-4.4h4.6v-4.4h4.6V7.8h4.8" fill="none" stroke="CUR" ' +
+         'stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>',
+  lift:  '<rect x="4.5" y="2.8" width="15" height="18.4" rx="1.8" fill="none" stroke="CUR" stroke-width="2"/>' +
+         '<path d="M12 6.4l-2.9 4h5.8z" fill="CUR"/><path d="M12 17.6l-2.9-4h5.8z" fill="CUR"/>',
+  male:  '<circle cx="12" cy="4.4" r="2.6" fill="CUR"/>' +
+         '<path d="M8.6 8.4h6.8l1.5 7.2h-2.4l-.5 6.2h-3.5l-.5-6.2H7.1z" fill="CUR"/>',
+  female:'<circle cx="12" cy="4.4" r="2.6" fill="CUR"/>' +
+         '<path d="M12 8.1l4.6 9.1h-2.7l.6 4.6h-5l.6-4.6H7.4z" fill="CUR"/>',
+  water: '<path d="M5.5 7.5h10.5v6.6a5.2 5.2 0 0 1-5.2 5.2h-.1a5.2 5.2 0 0 1-5.2-5.2z" ' +
+         'fill="none" stroke="CUR" stroke-width="2"/>' +
+         '<path d="M16 9.6h2.2a2.4 2.4 0 0 1 0 4.8H16" fill="none" stroke="CUR" stroke-width="2"/>' +
+         '<path d="M8.4 2.2v2.6M12 2.2v2.6" stroke="CUR" stroke-width="2" stroke-linecap="round"/>',
+  wc:    '<circle cx="9.6" cy="4.2" r="2.3" fill="CUR"/>' +
+         '<path d="M7.6 7.6v6.2h5.6l3 6.4" fill="none" stroke="CUR" stroke-width="2.2" ' +
+         'stroke-linecap="round" stroke-linejoin="round"/>' +
+         '<circle cx="11.4" cy="16.4" r="5.2" fill="none" stroke="CUR" stroke-width="2"/>'
+};
+function iconKey(label){
+  const t = (label || '').replace(/\n/g, '');
+  if(/無障礙/.test(t)) return 'wc';
+  if(/男廁/.test(t))   return 'male';
+  if(/女廁/.test(t))   return 'female';
+  if(/電梯/.test(t))   return 'lift';
+  if(/樓梯/.test(t))   return 'stair';
+  if(/茶水/.test(t))   return 'water';
+  return null;
+}
+
+
+/* 分類顏色 */
+function kindOf(label){
+  if(!label) return 'blank';
+  const t = label.replace(/\n/g,'');
+  if(t === '連城路') return 'outer';
+  if(/門口|校門/.test(t)) return 'gate';
+  if(/樓梯|電梯/.test(t)) return 'vert';
+  if(/廁|無障礙|茶水/.test(t)) return 'wc';
+  if(/(樓|館|中心)$/.test(t) && t.length <= 5 && !/教室|資源中心/.test(t)) return 'bldg';
+  return 'room';
+}
+const FILL = {bldg:'var(--bldg)', room:'var(--room)', wc:'var(--wc)', vert:'var(--vert)',
+              gate:'var(--gate)', outer:'var(--field)', blank:'var(--field)'};
+
+
+/* 依路線裁切出 viewBox，並畫圖；縱長的樓層圖自動轉 90 度 */
+function drawMap(gridKey, path, target){
+  const d = MAPS[gridKey];
+  let r1 = Infinity, c1 = Infinity, r2 = -1, c2 = -1;
+  const touch = ([r,c]) => { r1=Math.min(r1,r); c1=Math.min(c1,c); r2=Math.max(r2,r); c2=Math.max(c2,c); };
+  /* 兩種圖都看整張：1F＋戶外 一張、室內樓層 一張。
+     裁切會讓每張圖忽大忽小、方向也不一致，家長反而看不懂 */
+  r1 = 1; c1 = 1; r2 = d.maxr; c2 = d.maxc;
+
+  const cols = c2-c1+1, rows = r2-r1+1;
+  /* rot 0/90/180/270：把圖整個轉向，文字仍保持水平 */
+  const rot = 0;               // 一律用原圖方向，每張圖的方位才一致
+  const flip = false;
+  const longSide = flip ? rows : cols;
+  const CELL = Math.max(7, Math.min(30, 760/longSide));
+  const W = (flip ? rows : cols) * CELL;
+  const H = (flip ? cols : rows) * CELL;
+
+  const gx = (r, c) => rot === 0   ? [c-c1, r-r1]
+                     : rot === 90  ? [r2-r, c-c1]
+                     : rot === 180 ? [c2-c, r2-r]
+                     :               [r-r1, c2-c];
+  const mid = (r, c) => { const [a,b] = gx(r,c); return [(a+.5)*CELL, (b+.5)*CELL]; };
+  const box = (br1, bc1, br2, bc2) => {
+    const hh = br2-br1+1, ww = bc2-bc1+1;
+    if(rot === 0)   return [(bc1-c1)*CELL, (br1-r1)*CELL, ww*CELL, hh*CELL];
+    if(rot === 90)  return [(r2-br2)*CELL, (bc1-c1)*CELL, hh*CELL, ww*CELL];
+    if(rot === 180) return [(c2-bc2)*CELL, (r2-br2)*CELL, ww*CELL, hh*CELL];
+    return [(br1-r1)*CELL, (c2-bc2)*CELL, hh*CELL, ww*CELL];
+  };
+  const S = v => (v*CELL).toFixed(1);
+  const vline = (r, c) =>                      // 格子 (r,c) 的左邊界
+      rot === 0   ? `M${S(c-c1)} ${S(r-r1)}v${CELL.toFixed(1)}`
+    : rot === 90  ? `M${S(r2-r)} ${S(c-c1)}h${CELL.toFixed(1)}`
+    : rot === 180 ? `M${S(c2-c+1)} ${S(r2-r)}v${CELL.toFixed(1)}`
+    :               `M${S(r-r1)} ${S(c2-c+1)}h${CELL.toFixed(1)}`;
+  const hline = (r, c) =>                      // 格子 (r,c) 的上邊界
+      rot === 0   ? `M${S(c-c1)} ${S(r-r1)}h${CELL.toFixed(1)}`
+    : rot === 90  ? `M${S(r2-r+1)} ${S(c-c1)}v${CELL.toFixed(1)}`
+    : rot === 180 ? `M${S(c2-c)} ${S(r2-r+1)}h${CELL.toFixed(1)}`
+    :               `M${S(r-r1)} ${S(c2-c)}v${CELL.toFixed(1)}`;
+
+  const FS = CELL * 1.5;          // 全圖統一的文字大小
+  const parts = [];
+  d.blocks.forEach(b=>{
+    if(b.r2 < r1 || b.r1 > r2 || b.c2 < c1 || b.c1 > c2) return;
+    const k = kindOf(b.label);
+    const hit = target && (target.refs || [target.ref]).indexOf(b.ref) >= 0;
+    const [x,y,w,h] = box(b.r1, b.c1, b.r2, b.c2);
+    parts.push(`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}"
+      height="${h.toFixed(1)}" rx="2" fill="${FILL[k]}"></rect>`);
+    if(hit){
+      parts.push(`<rect class="desthi" x="${x.toFixed(1)}" y="${y.toFixed(1)}"
+        width="${w.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--mark)"></rect>
+        <rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}"
+        height="${h.toFixed(1)}" rx="2" fill="none" stroke="var(--mark)"
+        stroke-width="${Math.max(2, CELL*0.28).toFixed(1)}"></rect>`);
+    }
+    if(!b.label) return;
+
+    const ik = iconKey(b.label);
+    if(ik){
+      const size = Math.min(w, h) * 0.66;
+      const sc = size / 24;
+      parts.push(`<g transform="translate(${(x+w/2-size/2).toFixed(1)},${(y+h/2-size/2).toFixed(1)}) scale(${sc.toFixed(3)})"
+        opacity=".8">${ICONS[ik].replace(/CUR/g, 'var(--ink-soft)')}</g>`);
+      return;
+    }
+
+    /* 所有場域同一個字級，放不下就自動換行 */
+    const perLine = Math.max(1, Math.floor(w * 0.9 / FS));
+    const maxLines = Math.max(1, Math.floor(h * 0.9 / (FS * 1.16)));
+    const rows = [];
+    b.label.split('\n').forEach(seg=>{
+      for(let i = 0; i < seg.length; i += perLine) rows.push(seg.slice(i, i + perLine));
+    });
+    if(FS > w * 0.9) return;                    // 一個字都放不下就別畫
+    const shown = rows.length > maxLines
+      ? rows.slice(0, maxLines - 1).concat(
+          rows[maxLines-1].slice(0, Math.max(1, perLine - 1)) + '\u2026')
+      : rows;
+    shown.forEach((ln, i)=>{
+      parts.push(`<text x="${(x+w/2).toFixed(1)}"
+        y="${(y + h/2 + (i - (shown.length-1)/2) * FS * 1.16 + FS*0.35).toFixed(1)}"
+        text-anchor="middle" font-family="'Noto Sans TC',sans-serif" font-size="${FS.toFixed(1)}"
+        font-weight="${hit ? 800 : 500}"
+        fill="${hit ? 'var(--mark)' : 'var(--ink-soft)'}"
+        ${hit ? 'stroke="var(--panel)" stroke-width="'+(FS*0.16).toFixed(1)+'" paint-order="stroke"' : ''}
+        >${ln}</text>`);
+    });
+  });
+
+  const seg = (set, dashed, mul, col) => {
+    const p = [];
+    (set.V || []).forEach(([r,c])=>{
+      if(r < r1 || r > r2 || c < c1 || c > c2+1) return; p.push(vline(r,c));
+    });
+    (set.H || []).forEach(([r,c])=>{
+      if(r < r1 || r > r2+1 || c < c1 || c > c2) return; p.push(hline(r,c));
+    });
+    if(!p.length) return '';
+    const lw = Math.max(1.2, CELL*0.2);
+    return `<path d="${p.join('')}" stroke="${col}" stroke-width="${(lw*mul).toFixed(1)}"
+      fill="none" ${dashed ? `stroke-dasharray="${(lw*2).toFixed(1)} ${(lw*1.8).toFixed(1)}"` : ''}
+      stroke-linecap="butt"></path>`;
+  };
+  parts.push(seg(d.W, false, 1.0, 'var(--ink)'));   // 只畫牆
+
+  // 破折虛線（可通過的區隔）和點虛線（入口）只給程式判斷，畫出來反而像牆
+
+  if(path.length > 1){
+    const pts = path.map(([r,c])=>mid(r,c).map(v=>v.toFixed(1)).join(',')).join(' ');
+    parts.push(`<polyline points="${pts}" fill="none" stroke="var(--route)"
+      stroke-width="${Math.max(3, CELL*0.42).toFixed(1)}"
+      stroke-linecap="round" stroke-linejoin="round" class="rline"></polyline>`);
+  }
+  const rad = Math.max(4, CELL*0.42);
+  const dot = ([r,c], fill, ring) => {
+    const [x,y] = mid(r,c);
+    return (ring ? `<circle class="pulse" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}"
+              r="${(rad*1.7).toFixed(1)}" fill="${fill}"></circle>` : '')
+      + `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad.toFixed(1)}" fill="${fill}"
+          stroke="var(--panel)" stroke-width="${(rad*0.4).toFixed(1)}"></circle>`;
+  };
+  if(path.length > 1){
+    const [x0,y0] = mid(path[0][0], path[0][1]);
+    const [x1,y1] = mid(path[1][0], path[1][1]);
+    const ang = Math.atan2(y1-y0, x1-x0) * 180 / Math.PI + 90;
+    const a = rad * 1.15;
+    parts.push(`<g transform="translate(${x0.toFixed(1)},${y0.toFixed(1)}) rotate(${ang.toFixed(0)})">
+      <path d="M0,${(-a*1.5).toFixed(1)} L${a.toFixed(1)},${(a*.9).toFixed(1)}
+        L0,${(a*.45).toFixed(1)} L${(-a).toFixed(1)},${(a*.9).toFixed(1)} Z"
+        fill="var(--ink)" stroke="var(--panel)" stroke-width="${(rad*.34).toFixed(1)}"
+        stroke-linejoin="round"></path></g>`);
+  } else {
+    parts.push(dot(path[0], 'var(--ink)', false));
+  }
+  parts.push(dot(path[path.length-1], 'var(--mark)', true));
+
+
+  const note = '';
+  return `<div class="mapbox"><svg viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}"
+    width="${W.toFixed(0)}" height="${H.toFixed(0)}" role="img" aria-label="路線圖">
+    <rect x="0" y="0" width="${W.toFixed(0)}" height="${H.toFixed(0)}" fill="var(--field)"></rect>
+    ${parts.join('')}
+  </svg></div>${note}`;
+}
+
+
+/* 2.5D 等角視角：把每個樓層的平面斜放，依樓層高低堆疊，一張圖看完整條路線 */
+const ISO_COS = Math.cos(Math.PI/6), ISO_SIN = 0.5;
+
+function drawIso(legs, target, opts){
+  const o = Object.assign({pad:3, gapRatio:0.62, width:880}, opts || {});
+
+  /* 每一段各自裁切到用得到的範圍 */
+  const segs = legs.map(leg=>{
+    const d = MAPS[leg.grid];
+    let r1=Infinity, c1=Infinity, r2=-1, c2=-1;
+    const touch = (r,c)=>{ r1=Math.min(r1,r); c1=Math.min(c1,c); r2=Math.max(r2,r); c2=Math.max(c2,c); };
+    leg.path.forEach(([r,c]) => touch(r,c));
+    if(target && leg === legs[legs.length-1])
+      (target.rects || []).forEach(([a,b,cc,dd])=>{ touch(a,b); touch(cc,dd); });
+    r1=Math.max(1,r1-o.pad); c1=Math.max(1,c1-o.pad);
+    r2=Math.min(d.maxr,r2+o.pad); c2=Math.min(d.maxc,c2+o.pad);
+    return {leg, d, r1, c1, r2, c2, floor: D.gridFloor[leg.grid] || 1};
+  });
+
+  /* 格子大小依裁切範圍自適應，讓整張圖落在預期寬度 */
+  const wideCells = Math.max(...segs.map(s => (s.c2-s.c1+1) + (s.r2-s.r1+1)));
+  const CELL = Math.max(5, Math.min(13, o.width / (wideCells * ISO_COS)));
+
+  /* 每層的垂直位移：由下往上疊，最低的樓層放最下面 */
+  const minF = Math.min(...segs.map(s => s.floor));
+  const spanOf = s => ((s.r2-s.r1+1) + (s.c2-s.c1+1)) * ISO_SIN;   // 該層菱形的高（格）
+  const maxSpan = Math.max(...segs.map(spanOf));
+  const GAP = maxSpan * o.gapRatio;
+  /* 樓層差用非線性壓縮：跨 6 層不必畫成跨 1 層的 6 倍高，
+     高低看得出來就夠，實際樓層由圖上的 1F／7F 標籤說明 */
+  segs.forEach(s=>{
+    const df = s.floor - minF;
+    s.dz = df === 0 ? 0 : GAP * (1 + (df - 1) * 0.28);
+  });
+
+  const P = (s, r, c) => [ (c - s.c1 - (r - s.r1)) * ISO_COS * CELL,
+                           ((c - s.c1) + (r - s.r1)) * ISO_SIN * CELL - s.dz * CELL ];
+
+  /* 畫布範圍 */
+  let X0=Infinity, Y0=Infinity, X1=-Infinity, Y1=-Infinity;
+  segs.forEach(s=>{
+    [[s.r1,s.c1],[s.r1,s.c2+1],[s.r2+1,s.c1],[s.r2+1,s.c2+1]].forEach(([r,c])=>{
+      const [x,y] = P(s,r,c);
+      X0=Math.min(X0,x); Y0=Math.min(Y0,y); X1=Math.max(X1,x); Y1=Math.max(Y1,y);
+    });
+  });
+  const M = 34;
+  const W = (X1-X0) + M*2, H = (Y1-Y0) + M*2 + 10;
+  const T = (s,r,c)=>{ const [x,y]=P(s,r,c); return [(x-X0+M).toFixed(1), (y-Y0+M).toFixed(1)]; };
+
+  const parts = [];
+  /* 由低樓層往高樓層畫，上層自然疊在前面 */
+  segs.slice().sort((a,b)=>a.dz-b.dz).forEach((s, si)=>{
+    const d = s.d;
+    const poly = (r1,c1,r2,c2)=>[[r1,c1],[r1,c2+1],[r2+1,c2+1],[r2+1,c1]]
+      .map(([r,c])=>T(s,r,c).join(',')).join(' ');
+
+    /* 樓層底板 */
+    parts.push(`<polygon points="${poly(s.r1,s.c1,s.r2,s.c2)}"
+      fill="var(--field)" stroke="var(--line)" stroke-width="1.2"></polygon>`);
+
+    /* 房間 */
+    d.blocks.forEach(b=>{
+      if(b.r2 < s.r1 || b.r1 > s.r2 || b.c2 < s.c1 || b.c1 > s.c2) return;
+      const k = kindOf(b.label);
+      const hit = target && (target.refs || []).indexOf(b.ref) >= 0 && s === segs[segs.length-1];
+      const br1=Math.max(b.r1,s.r1), bc1=Math.max(b.c1,s.c1),
+            br2=Math.min(b.r2,s.r2), bc2=Math.min(b.c2,s.c2);
+      parts.push(`<polygon points="${poly(br1,bc1,br2,bc2)}" fill="${FILL[k]}"
+        stroke="var(--line)" stroke-width=".5"></polygon>`);
+      if(hit){
+        parts.push(`<polygon class="desthi" points="${poly(br1,bc1,br2,bc2)}"
+          fill="var(--mark)"></polygon>
+          <polygon points="${poly(br1,bc1,br2,bc2)}" fill="none"
+          stroke="var(--mark)" stroke-width="2.4"></polygon>`);
+      }
+      /* 名稱：畫在區塊中心，保持水平才讀得到 */
+      const label = (b.label || '').replace(/\n/g,' ');
+      if(!label) return;
+      const ik = iconKey(b.label);
+      const [mx,my] = T(s, (br1+br2+1)/2, (bc1+bc2+1)/2);
+      if(ik){
+        const size = CELL * 1.5, sc = size/24;
+        parts.push(`<g transform="translate(${(+mx-size/2).toFixed(1)},${(+my-size/2).toFixed(1)}) scale(${sc.toFixed(3)})"
+          opacity=".8">${ICONS[ik].replace(/CUR/g,'var(--ink-soft)')}</g>`);
+        return;
+      }
+      const wCells = (bc2-bc1+1), hCells = (br2-br1+1);
+      const fs = Math.min(CELL * 1.15, (Math.min(wCells,hCells) * CELL * ISO_COS) / Math.max(2, label.length) * 2.1);
+      if(fs < 6) return;
+      parts.push(`<text x="${mx}" y="${(+my + fs*0.34).toFixed(1)}" text-anchor="middle"
+        font-family="'Noto Sans TC',sans-serif" font-size="${fs.toFixed(1)}"
+        font-weight="${hit?800:500}" fill="${hit?'var(--mark)':'var(--ink-soft)'}"
+        ${hit?'stroke="var(--panel)" stroke-width="'+(fs*.16).toFixed(1)+'" paint-order="stroke"':''}
+        >${label}</text>`);
+    });
+
+    /* 牆 */
+    const wp = [];
+    d.W.V.forEach(([r,c])=>{
+      if(r < s.r1 || r > s.r2 || c < s.c1 || c > s.c2+1) return;
+      wp.push('M' + T(s,r,c).join(' ') + 'L' + T(s,r+1,c).join(' '));
+    });
+    d.W.H.forEach(([r,c])=>{
+      if(r < s.r1 || r > s.r2+1 || c < s.c1 || c > s.c2) return;
+      wp.push('M' + T(s,r,c).join(' ') + 'L' + T(s,r,c+1).join(' '));
+    });
+    if(wp.length) parts.push(`<path d="${wp.join('')}" stroke="var(--ink)"
+      stroke-width="1.9" fill="none" stroke-linecap="round"></path>`);
+
+    /* 樓層標籤 */
+    const [lx,ly] = T(s, s.r1, s.c1);
+    parts.push(`<text x="${(+lx - 6).toFixed(1)}" y="${(+ly - 8).toFixed(1)}" text-anchor="end"
+      font-family="'Barlow Condensed',sans-serif" font-size="17" font-weight="700"
+      fill="var(--ink-soft)">${s.floor}F</text>`);
+
+    /* 路線 */
+    const pts = s.leg.path.map(([r,c]) => T(s, r+0.5, c+0.5).join(',')).join(' ');
+    parts.push(`<polyline points="${pts}" fill="none" stroke="var(--route)"
+      stroke-width="${Math.max(3, CELL*0.36).toFixed(1)}" stroke-linecap="round"
+      stroke-linejoin="round" class="rline"></polyline>`);
+  });
+
+  /* 樓層之間的連接：從下層的終點拉一條柱子到上層的起點 */
+  for(let i = 1; i < segs.length; i++){
+    const a = segs[i-1], b = segs[i];
+    const ap = a.leg.path[a.leg.path.length-1], bp = b.leg.path[0];
+    const [ax,ay] = T(a, ap[0]+0.5, ap[1]+0.5);
+    const [bx,by] = T(b, bp[0]+0.5, bp[1]+0.5);
+    parts.push(`<path d="M${ax} ${ay}L${bx} ${by}" stroke="var(--route)"
+      stroke-width="${Math.max(2.5, CELL*0.3).toFixed(1)}" stroke-dasharray="5 4"
+      opacity=".85" stroke-linecap="round"></path>`);
+    const mx = (+ax + +bx)/2, my = (+ay + +by)/2;
+    parts.push(`<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="12"
+      fill="var(--route)" opacity=".95"></circle>
+      <text x="${mx.toFixed(1)}" y="${(my+4.5).toFixed(1)}" text-anchor="middle"
+      font-family="'Noto Sans TC',sans-serif" font-size="12" font-weight="800"
+      fill="var(--on-route)">${b.floor > a.floor ? '↑' : '↓'}</text>`);
+  }
+
+  /* 起點箭頭與終點 */
+  const first = segs[0], last = segs[segs.length-1];
+  const fp = first.leg.path[0];
+  const [fx,fy] = T(first, fp[0]+0.5, fp[1]+0.5);
+  parts.push(`<circle cx="${fx}" cy="${fy}" r="${(CELL*0.42).toFixed(1)}"
+    fill="var(--ink)" stroke="var(--panel)" stroke-width="2.2"></circle>`);
+  const lp = last.leg.path[last.leg.path.length-1];
+  const [tx,ty] = T(last, lp[0]+0.5, lp[1]+0.5);
+  parts.push(`<circle class="pulse" cx="${tx}" cy="${ty}" r="11" fill="var(--mark)"></circle>
+    <circle cx="${tx}" cy="${ty}" r="${(CELL*0.42).toFixed(1)}" fill="var(--mark)"
+    stroke="var(--panel)" stroke-width="2.2"></circle>`);
+
+  return `<div class="mapbox"><svg viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}"
+    width="${W.toFixed(0)}" height="${H.toFixed(0)}" role="img" aria-label="立體路線圖">
+    ${parts.join('')}
+  </svg></div>`;
+}
+
+/* 建築量體：從平面圖把每棟樓擠出成立方體，一張圖看整個校園與路線 */
+const MS_COS = Math.cos(Math.PI/6), MS_SIN = 0.5;
+
+/* 只有一層可去、但實際很高的建築：立體圖照實際高度畫，不畫樓層線 */
+const BUILD_HEIGHT = {'活動中心': 4, '圖書館': 5};
+function buildTopFloor(){
+  if(buildTopFloor.cache) return buildTopFloor.cache;
+  const t = {};
+  PLACES.forEach(p => { t[p.bldg] = Math.max(t[p.bldg] || 1, p.floor || 1); });
+  Object.entries(BUILD_HEIGHT).forEach(([b, h]) => { t[b] = Math.max(t[b] || 1, h); });
+  return (buildTopFloor.cache = t);
+}
+
+/* 目的地高亮範圍：房間往外穿過走道，直到碰到外牆（走道寬度 4 格以內才延伸），
+   這樣立體圖的外牆上也看得出是哪一層 */
+function destRects(target){
+  if(!target || !target.rects) return [];
+  destRects.cache = destRects.cache || {};
+  if(destRects.cache[target.key]) return destRects.cache[target.key];
+  const runs = D.build[target.bldg], g = MAPS[target.grid];
+  if(!runs || !g) return (destRects.cache[target.key] = target.rects);
+  const inB = new Set();
+  runs.forEach(([r,a,b]) => { for(let c=a;c<=b;c++) inB.add(r*256+c); });
+  const room = new Set();
+  g.blocks.forEach(bl => {
+    if(D.build[bl.label]) return;
+    for(let r=bl.r1;r<=bl.r2;r++) for(let c=bl.c1;c<=bl.c2;c++) room.add(r*256+c);
+  });
+  const corr = (r,c) => inB.has(r*256+c) && !room.has(r*256+c);
+  const out = (r,c) => !inB.has(r*256+c);
+  const MAXW = 4;
+  const res = target.rects.map(([r1,c1,r2,c2]) => {
+    const row = (r, f) => { for(let c=c1;c<=c2;c++) if(!f(r,c)) return false; return true; };
+    const col = (c, f) => { for(let r=r1;r<=r2;r++) if(!f(r,c)) return false; return true; };
+    const reach = (lineOK, start, step) => {
+      let k = 0;
+      while(k < MAXW && lineOK(start + step*k, corr)) k++;
+      return (k > 0 && lineOK(start + step*k, out)) ? k : 0;
+    };
+    const s = reach((r,f)=>row(r,f), r2+1,  1);
+    const n = reach((r,f)=>row(r,f), r1-1, -1);
+    const e = reach((c,f)=>col(c,f), c2+1,  1);
+    const w = reach((c,f)=>col(c,f), c1-1, -1);
+    const list = [[r1,c1,r2,c2]];
+    if(s) list.push([r2+1, c1, r2+s, c2]);
+    if(n) list.push([r1-n, c1, r1-1, c2]);
+    if(e) list.push([r1, c2+1, r2, c2+e]);
+    if(w) list.push([r1, c1-w, r2, c1-1]);
+    /* 轉角也都是走道就合成一個大方塊，否則分開畫 */
+    const R1 = r1-n, R2 = r2+s, C1 = c1-w, C2 = c2+e;
+    let whole = true;
+    for(let r=R1;r<=R2 && whole;r++) for(let c=C1;c<=C2;c++){
+      const inside = r>=r1 && r<=r2 && c>=c1 && c<=c2;
+      if(!inside && !corr(r,c)){ whole = false; break; }
+    }
+    return whole ? [[R1,C1,R2,C2]] : list;
+  }).flat();
+  return (destRects.cache[target.key] = res);
+}
+
+/* 立體圖的樓梯間／電梯井：只畫這次會經過的那幾層 */
+function drawVertical(v, P, ZS){
+  const {r1, c1, r2, c2} = v.b;
+  const f = pts => pts.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ');
+  /* 一個方塊（實數座標）：頂面、南面、東面 */
+  const box = (ra, rb, ca, cb, za, zb, cls) =>
+    `<polygon points="${f([[ra,ca,zb],[ra,cb,zb],[rb,cb,zb],[rb,ca,zb]].map(q=>P(...q)))}" class="${cls} v-top"></polygon>` +
+    `<polygon points="${f([[rb,ca,za],[rb,cb,za],[rb,cb,zb],[rb,ca,zb]].map(q=>P(...q)))}" class="${cls} v-south"></polygon>` +
+    `<polygon points="${f([[ra,cb,za],[rb,cb,za],[rb,cb,zb],[ra,cb,zb]].map(q=>P(...q)))}" class="${cls} v-east"></polygon>`;
+  const R1 = r1, R2 = r2 + 1, C1 = c1, C2 = c2 + 1;
+  const zLo = v.zLo, zHi = v.zHi;
+  const parts = [];
+
+  /* 玻璃外殼：後面的邊用虛線，前面的邊用實線 */
+  const shaftTop = v.kind === '電梯' ? zHi + 1 : zHi + 0.35;
+  const line = (a, b, cls) => { const [x1,y1] = P(...a), [x2,y2] = P(...b);
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="${cls}"></line>`; };
+  parts.push(`<polygon points="${f([[R1,C1,zLo],[R1,C2,zLo],[R2,C2,zLo],[R2,C1,zLo]].map(q=>P(...q)))}" class="v-floor"></polygon>`);
+  parts.push(line([R1,C1,zLo],[R1,C1,shaftTop],'v-back'), line([R1,C1,zLo],[R1,C2,zLo],'v-back'), line([R1,C1,zLo],[R2,C1,zLo],'v-back'));
+  for(let z = zLo + 1; z <= zHi; z++){
+    parts.push(`<polyline points="${f([[R2,C1,z],[R2,C2,z],[R1,C2,z]].map(q=>P(...q)))}" class="v-level"></polyline>`);
+  }
+
+  if(v.kind === '電梯'){
+    /* 電梯車廂：從出發樓層移到目的樓層，停一下再重來 */
+    const ins = 0.18, h = 0.82;
+    const car = box(R1+ins, R2-ins, C1+ins, C2-ins, v.zFrom, v.zFrom + h, 'v-car');
+    const [dx1, dy1] = P((R1+R2)/2, C2-ins, v.zFrom), [, dy2] = P((R1+R2)/2, C2-ins, v.zFrom + h);
+    const dy = -(v.zTo - v.zFrom) * ZS;
+    const dur = Math.max(2.4, 1.2 + Math.abs(v.zTo - v.zFrom) * 0.7).toFixed(1);
+    parts.push(`<g class="v-cargroup">${car}
+      <line x1="${dx1.toFixed(1)}" y1="${(dy1-0.5).toFixed(1)}" x2="${dx1.toFixed(1)}" y2="${(dy2+1).toFixed(1)}" class="v-door"></line>
+      <animateTransform attributeName="transform" type="translate" dur="${dur}s" repeatCount="indefinite"
+        values="0 0;0 0;0 ${dy.toFixed(1)};0 ${dy.toFixed(1)}" keyTimes="0;0.18;0.78;1"
+        calcMode="spline" keySplines="0 0 1 1;0.45 0 0.55 1;0 0 1 1"></animateTransform></g>`);
+  } else {
+    /* 折返樓梯：每層兩段，中間有平台；沿著長邊上下 */
+    const alongR = (R2 - R1) >= (C2 - C1);
+    const U1 = alongR ? R1 : C1, U2 = alongR ? R2 : C2;      // 梯段方向
+    const V1 = alongR ? C1 : R1, V2 = alongR ? C2 : R2;      // 橫向（分成兩條）
+    const Vm = (V1 + V2) / 2;
+    const land = Math.min(1, (U2 - U1) * 0.25);
+    const uA = U1 + land, uB = U2 - land;                     // 梯段起訖
+    const N = 6;
+    const pieces = [];
+    const addBox = (u1, u2, va, vb, za, zb, cls) => {
+      const [ra, rb, ca, cb] = alongR ? [u1, u2, va, vb] : [va, vb, u1, u2];
+      pieces.push({d: (ra+rb)/2 + (ca+cb)/2 + 2.7*zb, svg: box(ra, rb, ca, cb, za, zb, cls)});
+    };
+    for(let z = zLo; z < zHi; z++){
+      for(let i = 0; i < N; i++){
+        /* 第一段：靠 V1 那條，從近端 uB 往遠端 uA 爬半層 */
+        const t = (uB - uA) / N;
+        const zt1 = z + 0.5 * (i + 1) / N;
+        addBox(uB - t*(i+1), uB - t*i, V1, Vm, zt1 - 0.5/N, zt1, 'v-step');
+        /* 第二段：靠 V2 那條，從遠端 uA 往近端 uB 再爬半層 */
+        const zt2 = z + 0.5 + 0.5 * (i + 1) / N;
+        addBox(uA + t*i, uA + t*(i+1), Vm, V2, zt2 - 0.5/N, zt2, 'v-step');
+      }
+      addBox(U1, uA, V1, V2, z + 0.5 - 0.06, z + 0.5, 'v-landing');       // 中間平台
+      addBox(uB, U2, V1, V2, z + 1 - 0.06, z + 1, 'v-landing');           // 樓層平台
+    }
+    pieces.sort((a, b) => a.d - b.d);
+    pieces.forEach(p => parts.push(p.svg));
+  }
+
+  /* 前面的外殼邊線 */
+  parts.push(`<polygon points="${f([[R1,C1,shaftTop],[R1,C2,shaftTop],[R2,C2,shaftTop],[R2,C1,shaftTop]].map(q=>P(...q)))}" class="v-glass-top"></polygon>`);
+  parts.push(`<polygon points="${f([[R2,C1,zLo],[R2,C2,zLo],[R2,C2,shaftTop],[R2,C1,shaftTop]].map(q=>P(...q)))}" class="v-glass"></polygon>`);
+  parts.push(`<polygon points="${f([[R1,C2,zLo],[R2,C2,zLo],[R2,C2,shaftTop],[R1,C2,shaftTop]].map(q=>P(...q)))}" class="v-glass"></polygon>`);
+  return `<g class="vshaft">${parts.join('')}</g>`;
+}
+
+function polysOverlap(A, B){
+  for(const poly of [A, B]){
+    for(let i = 0; i < poly.length; i++){
+      const [x1,y1] = poly[i], [x2,y2] = poly[(i+1) % poly.length];
+      const nx = y1 - y2, ny = x2 - x1;
+      let aMin=Infinity, aMax=-Infinity, bMin=Infinity, bMax=-Infinity;
+      A.forEach(([x,y])=>{ const v = x*nx + y*ny; aMin=Math.min(aMin,v); aMax=Math.max(aMax,v); });
+      B.forEach(([x,y])=>{ const v = x*nx + y*ny; bMin=Math.min(bMin,v); bMax=Math.max(bMax,v); });
+      if(aMax <= bMin + 1e-6 || bMax <= aMin + 1e-6) return false;
+    }
+  }
+  return true;
+}
+
+function drawMassing(legs, target, via){
+  const base = MAPS[D.baseGrid];
+  const CELL = 4.6, ZS = CELL * 2.7;              // 格寬、每層高（像素）
+  const R0 = 1, C0 = 1, R1 = base.maxr, C1 = base.maxc;
+  const P = (r, c, z) => [ (c - r) * MS_COS * CELL, (c + r) * MS_SIN * CELL - z * ZS ];
+
+  const tops = buildTopFloor();
+  const faces = [];      // {depth, svg}
+
+  /* 地面 */
+  const ground = [[R0,C0],[R0,C1+1],[R1+1,C1+1],[R1+1,C0]].map(([r,c])=>P(r,c,0));
+
+  /* 每棟建築：依 RLE 列區間擠出，只畫朝觀察者的南面、東面與頂面 */
+  for(const [name, runs] of Object.entries(D.build)){
+    const H = tops[name] || 1;
+    const set = new Set();
+    runs.forEach(([r,a,b]) => { for(let c=a;c<=b;c++) set.add(r*256+c); });
+    const has = (r,c) => set.has(r*256+c);
+    const isTarget = target && target.bldg === name;
+    const tone = isTarget ? 'tgt' : 'std';
+    const pts = arr => arr.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ');
+
+    /* 頂面：每列一塊但不描邊，外輪廓另外畫一次，屋頂才不會有條紋 */
+    runs.forEach(([r,a,b])=>{
+      const tp = [[r,a],[r,b+1],[r+1,b+1],[r+1,a]].map(([rr,cc])=>P(rr,cc,H));
+      faces.push({d: r + (a+b)/2 + 1.0, z: H, b: name, poly: tp, front: (rd,cd) => r + 0.5 > rd, svg:
+        `<polygon points="${pts(tp)}"
+          class="m-top m-${tone}"></polygon>`});
+    });
+
+    /* 南面：沿欄方向把連續格子合成一面 */
+    runs.forEach(([r,a,b])=>{
+      let s = null;
+      for(let c = a; c <= b + 1; c++){
+        const open = c <= b && !has(r+1, c);
+        if(open && s === null) s = c;
+        if((!open || c === b+1) && s !== null){
+          const e = open ? c : c - 1;
+          const sp = [[r+1,s,0],[r+1,e+1,0],[r+1,e+1,H],[r+1,s,H]].map(([rr,cc,zz])=>P(rr,cc,zz));
+          let lines = '';
+          for(let f = 1; f < H && !BUILD_HEIGHT[name]; f++){
+            const [x1,y1] = P(r+1,s,f), [x2,y2] = P(r+1,e+1,f);
+            lines += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="m-floorline"></line>`;
+          }
+          faces.push({d: r + 1 + (s+e)/2 + 0.8, z: 0, b: name, poly: sp, front: (rd,cd) => r + 1 > rd, svg:
+            `<polygon points="${pts(sp)}" class="m-side m-south m-${tone}"></polygon>${lines}`});
+          s = null;
+        }
+      }
+    });
+
+    /* 東面：先找出所有外露位置，再沿列方向把連續的合成一面 */
+    const eastCols = new Map();
+    runs.forEach(([r,a,b])=>{
+      for(let c = a; c <= b; c++) if(!has(r, c+1)){
+        if(!eastCols.has(c+1)) eastCols.set(c+1, []);
+        eastCols.get(c+1).push(r);
+      }
+    });
+    eastCols.forEach((rows, cc)=>{
+      rows.sort((x,y)=>x-y);
+      let s = rows[0], p = rows[0];
+      const flush = (r1, r2)=>{
+        const ep = [[r1,cc,0],[r2+1,cc,0],[r2+1,cc,H],[r1,cc,H]].map(([rr,c2,zz])=>P(rr,c2,zz));
+        let lines = '';
+        for(let f = 1; f < H && !BUILD_HEIGHT[name]; f++){
+          const [x1,y1] = P(r1,cc,f), [x2,y2] = P(r2+1,cc,f);
+          lines += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="m-floorline"></line>`;
+        }
+        faces.push({d: (r1+r2)/2 + cc + 0.9, z: 0, b: name, poly: ep, front: (rd,cd) => cc > cd, svg:
+          `<polygon points="${pts(ep)}" class="m-side m-east m-${tone}"></polygon>${lines}`});
+      };
+      for(let i = 1; i < rows.length; i++){
+        if(rows[i] === p + 1){ p = rows[i]; continue; }
+        flush(s, p); s = p = rows[i];
+      }
+      flush(s, p);
+    });
+
+    /* 屋頂外輪廓 */
+    const edge = [];
+    set.forEach(k=>{
+      const r = k >> 8, c = k & 255;
+      if(!has(r-1,c)) edge.push([P(r,c,H),   P(r,c+1,H)]);
+      if(!has(r+1,c)) edge.push([P(r+1,c,H), P(r+1,c+1,H)]);
+      if(!has(r,c-1)) edge.push([P(r,c,H),   P(r+1,c,H)]);
+      if(!has(r,c+1)) edge.push([P(r,c+1,H), P(r+1,c+1,H)]);
+    });
+    let maxD = 0;
+    runs.forEach(([r,a,b]) => { maxD = Math.max(maxD, r + b); });
+    faces.push({d: maxD + 2, z: H, b: name, svg:
+      `<path d="${edge.map(([p1,p2])=>'M'+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'L'+p2[0].toFixed(1)+' '+p2[1].toFixed(1)).join('')}"
+        class="m-roofline"></path>`});
+
+    /* 建築名稱：標在屋頂中心 */
+    let sr=0, sc=0, n=0;
+    runs.forEach(([r,a,b])=>{ sr += r*(b-a+1); sc += (a+b)/2*(b-a+1); n += (b-a+1); });
+    const [lx, ly] = P(sr/n + 0.5, sc/n + 0.5, H);
+    faces.push({d: 1e6, z: H, label: true, svg:
+      `<text x="${lx.toFixed(1)}" y="${(ly+6).toFixed(1)}" text-anchor="middle" class="m-name ${isTarget?'m-name-tgt':''}">${name}</text>`});
+  }
+
+  /* 連城路與校門口：路面畫在地上，校門畫成兩根門柱加橫樑 */
+  const groundExtra = [];
+  const fx = pts => pts.map(p => p.map(v => v.toFixed(1)).join(',')).join(' ');
+  const road = base.blocks.find(b => b.label === '連城路');
+  if(road){
+    const {r1, c1, r2, c2} = road;
+    groundExtra.push(`<polygon points="${fx([[r1,c1],[r1,c2+1],[r2+1,c2+1],[r2+1,c1]].map(([r,c]) => P(r,c,0)))}" class="m-road"></polygon>`);
+    const edge = (c, cls) => { const [x1,y1] = P(r1,c,0), [x2,y2] = P(r2+1,c,0);
+      return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="${cls}"></line>`; };
+    groundExtra.push(edge(c1 + 0.6, 'm-road-edge'), edge(c2 + 0.4, 'm-road-edge'), edge((c1 + c2 + 1) / 2, 'm-road-mid'));
+    /* 路名像漆在路面上：文字的橫軸沿著馬路、縱軸沿著路寬 */
+    const [lx, ly] = P(r1 + (r2 + 1 - r1) * 0.3, (c1 + c2 + 1) / 2, 0);
+    groundExtra.push(`<text transform="matrix(${MS_COS.toFixed(3)} ${(-MS_SIN).toFixed(3)} ${MS_COS.toFixed(3)} ${MS_SIN.toFixed(3)} ${lx.toFixed(1)} ${ly.toFixed(1)})"
+      text-anchor="middle" dominant-baseline="central" class="m-road-name">連城路</text>`);
+  }
+  const gate = base.blocks.find(b => b.label === '校門口');
+  if(gate){
+    const {r1, c1, r2, c2} = gate;
+    groundExtra.push(`<polygon points="${fx([[r1,c1],[r1,c2+1],[r2+1,c2+1],[r2+1,c1]].map(([r,c]) => P(r,c,0)))}" class="m-plaza"></polygon>`);
+    const cube = (ra, rb, ca, cb, za, zb, d) => faces.push({d, z: zb, svg:
+      `<polygon points="${fx([[ra,cb,za],[rb,cb,za],[rb,cb,zb],[ra,cb,zb]].map(q => P(...q)))}" class="m-side m-east m-gate"></polygon>` +
+      `<polygon points="${fx([[rb,ca,za],[rb,cb,za],[rb,cb,zb],[rb,ca,zb]].map(q => P(...q)))}" class="m-side m-south m-gate"></polygon>` +
+      `<polygon points="${fx([[ra,ca,zb],[ra,cb,zb],[rb,cb,zb],[rb,ca,zb]].map(q => P(...q)))}" class="m-side m-top m-gate"></polygon>`});
+    const gc1 = c2 - 0.4, gc2 = c2 + 0.9;            // 門柱貼著馬路那一側
+    const H = 1.35;
+    cube(r1, r1 + 1.4, gc1, gc2, 0, H, r1 + c2 + 2);
+    cube(r2 - 0.4, r2 + 1, gc1, gc2, 0, H, r2 + c2 + 2.5);
+    cube(r1, r2 + 1, gc1 + 0.2, gc2 - 0.2, H - 0.22, H + 0.05, r2 + c2 + 2.6);   // 橫樑
+    const [tx, ty] = P((r1 + r2 + 1) / 2, gc2, H + 0.05);
+    faces.push({d: 1e6, z: 9, label: true, svg:
+      `<text x="${tx.toFixed(1)}" y="${(ty - 6).toFixed(1)}" text-anchor="middle" class="m-name">校門口</text>`});
+  }
+
+  faces.sort((a,b) => a.d - b.d || a.z - b.z);
+
+  /* 這次路線用到的樓梯／電梯：在第二段起點旁邊、種類相同的那一座 */
+  let vert = null;
+  if(via && legs.length > 1){
+    const g2 = MAPS[legs[1].grid], [pr, pc] = legs[1].path[0];
+    let bd = Infinity;
+    g2.blocks.forEach(b => {
+      if(!b.label || b.label.indexOf(via) < 0) return;
+      const dr = Math.max(b.r1 - pr, 0, pr - b.r2), dc = Math.max(b.c1 - pc, 0, pc - b.c2);
+      const d = dr*dr + dc*dc;
+      if(d < bd){ bd = d; vert = b; }
+    });
+    if(vert && bd > 9) vert = null;
+    if(vert){
+      const za = (D.gridFloor[legs[0].grid] || 1) - 1, zb = (D.gridFloor[legs[1].grid] || 1) - 1;
+      vert = {b: vert, kind: via, zFrom: za, zTo: zb, zLo: Math.min(za, zb), zHi: Math.max(za, zb),
+              bldg: Object.keys(D.build).find(n => D.build[n].some(([r,a,b2]) => r === vert.r1 && a <= vert.c1 && b2 >= vert.c1))};
+    }
+  }
+
+  /* 擋住目的地（或樓梯、電梯）的大樓變半透明：螢幕上重疊、而且位置在它前面 */
+  const ghost = new Set();
+  const focus = [];
+  if(target && target.rects && target.rects.length){
+    const zf = (target.floor || 1) - 1;
+    destRects(target).forEach(rc => focus.push({rc, z0: zf, z1: zf + 1, own: target.bldg}));
+  }
+  if(vert) focus.push({rc: [vert.b.r1, vert.b.c1, vert.b.r2, vert.b.c2], z0: vert.zLo, z1: vert.zHi + 1, own: vert.bldg});
+  {
+    focus.forEach(({rc: [r1,c1,r2,c2], z0: zLo, z1: zUp, own})=>{
+      const rd = (r1 + r2 + 1) / 2, cd = (c1 + c2 + 1) / 2;
+      const boxPolys = [
+        [[r1,c1,zUp],[r1,c2+1,zUp],[r2+1,c2+1,zUp],[r2+1,c1,zUp]],
+        [[r2+1,c1,zLo],[r2+1,c2+1,zLo],[r2+1,c2+1,zUp],[r2+1,c1,zUp]],
+        [[r1,c2+1,zLo],[r2+1,c2+1,zLo],[r2+1,c2+1,zUp],[r1,c2+1,zUp]]
+      ].map(q => q.map(([r,c,z]) => P(r,c,z)));
+      faces.forEach(f=>{
+        if(!f.poly || f.b === own || ghost.has(f.b)) return;
+        if(!f.front(rd, cd)) return;
+        if(boxPolys.some(q => polysOverlap(q, f.poly))) ghost.add(f.b);
+      });
+    });
+  }
+
+  /* 路線：1F 在地面、樓上在該層高度；跨樓層用垂直線接起來 */
+  const over = [];
+  legs.forEach((leg, i)=>{
+    const z = (D.gridFloor[leg.grid] || 1) - 1;
+    const pts = leg.path.map(([r,c]) => P(r+0.5, c+0.5, z).map(v=>v.toFixed(1)).join(',')).join(' ');
+    over.push(`<polyline points="${pts}" class="m-route rline"></polyline>`);
+    if(i > 0 && vert){
+      /* 樓梯間／電梯井在目的地方塊之後才畫，才不會被紅色蓋住 */
+    } else if(i > 0){
+      const a = legs[i-1], za = (D.gridFloor[a.grid] || 1) - 1;
+      const pa = a.path[a.path.length-1], pb = leg.path[0];
+      const [x1,y1] = P(pa[0]+0.5, pa[1]+0.5, za), [x2,y2] = P(pb[0]+0.5, pb[1]+0.5, z);
+      over.push(`<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="m-rise"></line>`);
+    }
+  });
+
+  /* 目的地：在正確的樓層高度畫一個發光的方塊 */
+  if(target){
+    const zf = (target.floor || 1) - 1;
+    const DR = destRects(target).slice().sort((a,b)=>(a[0]+a[1])-(b[0]+b[1]));
+    const touches = (side, [r1,c1,r2,c2]) => DR.some(([a1,b1,a2,b2]) => side === 's'
+      ? a1 === r2+1 && b1 <= c2 && b2 >= c1
+      : b1 === c2+1 && a1 <= r2 && a2 >= r1);
+    DR.forEach(([r1,c1,r2,c2])=>{
+      const hideS = touches('s', [r1,c1,r2,c2]), hideE = touches('e', [r1,c1,r2,c2]);
+      /* 看得到的 9 條邊：頂面 4 條、前方 3 條直邊、底部前方 2 條；後方 3 條被擋住不畫 */
+      const edges = (z0, z1)=>{
+        const p = (r,c,z) => P(r,c,z).map(v=>v.toFixed(1)).join(' ');
+        const T1 = p(r1,c1,z1), T2 = p(r1,c2+1,z1), T3 = p(r2+1,c2+1,z1), T4 = p(r2+1,c1,z1);
+        const B2 = p(r1,c2+1,z0), B3 = p(r2+1,c2+1,z0), B4 = p(r2+1,c1,z0);
+        let d = `M${T1}L${T2}L${T3}L${T4}Z`;
+        if(!hideS) d += `M${T4}L${B4}L${B3}L${T3}`;
+        if(!hideE) d += `M${B3}L${B2}L${T2}`;
+        return `<path d="${d}" class="m-dest-edge"></path>`;
+      };
+      const box = (z0, z1)=>{
+        const top = [[r1,c1],[r1,c2+1],[r2+1,c2+1],[r2+1,c1]].map(([r,c])=>P(r,c,z1));
+        const s = [[r2+1,c1,z0],[r2+1,c2+1,z0],[r2+1,c2+1,z1],[r2+1,c1,z1]].map(([r,c,z])=>P(r,c,z));
+        const e = [[r1,c2+1,z0],[r2+1,c2+1,z0],[r2+1,c2+1,z1],[r1,c2+1,z1]].map(([r,c,z])=>P(r,c,z));
+        const f = pts => pts.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ');
+        return (hideS ? '' : `<polygon points="${f(s)}" class="m-dest-s desthi"></polygon>`) +
+               (hideE ? '' : `<polygon points="${f(e)}" class="m-dest-e desthi"></polygon>`) + `
+                <polygon points="${f(top)}" class="m-dest-t desthi"></polygon>` + edges(z0, z1);
+      };
+      over.push(box(zf, zf + 1));
+    });
+    const lp = legs[legs.length-1].path.slice(-1)[0];
+    const [tx,ty] = P(lp[0]+0.5, lp[1]+0.5, zf);
+    over.push(`<circle class="pulse" cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="10" fill="var(--mark)"></circle>
+               <circle cx="${tx.toFixed(1)}" cy="${ty.toFixed(1)}" r="4.6" fill="var(--mark)" stroke="var(--panel)" stroke-width="2"></circle>`);
+  }
+  if(vert){
+    const shaft = drawVertical(vert, P, ZS);
+    const at = over.findIndex(x => x.indexOf('class="pulse"') >= 0);
+    if(at >= 0) over.splice(at, 0, shaft); else over.push(shaft);
+  }
+  const fp = legs[0].path[0], zf0 = (D.gridFloor[legs[0].grid] || 1) - 1;
+  const [sx,sy] = P(fp[0]+0.5, fp[1]+0.5, zf0);
+  over.push(`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="5.5" fill="var(--ink)" stroke="var(--panel)" stroke-width="2.2"></circle>`);
+
+  /* 畫布範圍 */
+  const allPts = [...ground];
+  const maxH = Math.max(...Object.values(tops));
+  [[R0,C0],[R0,C1+1],[R1+1,C1+1],[R1+1,C0]].forEach(([r,c]) => allPts.push(P(r,c,maxH)));
+  let X0=Infinity, Y0=Infinity, X1=-Infinity, Y1=-Infinity;
+  allPts.forEach(([x,y])=>{ X0=Math.min(X0,x); Y0=Math.min(Y0,y); X1=Math.max(X1,x); Y1=Math.max(Y1,y); });
+  const M = 22, W = X1-X0+M*2, H = Y1-Y0+M*2;
+
+  return `<div class="mapbox"><svg viewBox="${(X0-M).toFixed(0)} ${(Y0-M).toFixed(0)} ${W.toFixed(0)} ${H.toFixed(0)}"
+    width="${W.toFixed(0)}" height="${H.toFixed(0)}" role="img" aria-label="校園立體圖">
+    <polygon points="${ground.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ')}" class="m-ground"></polygon>
+    ${groundExtra.join('')}
+    ${faces.map(f => ghost.has(f.b) && !f.label ? `<g class="m-ghost">${f.svg}</g>` : f.svg).join('')}
+    ${over.join('')}
+  </svg></div>`;
+}
+
+const MAPS = D.grids;          // drawMap 沿用舊名
+const PLACES = D.places;
+const R = makeRouter(D);
+const byKey = {};
+PLACES.forEach(p => byKey[p.key] = p);
+
+let fromKey = (D.starts[0] && D.starts[0].key) || PLACES[0].key;
+let toKey   = (PLACES.find(p => p.label === '303') || PLACES[1] || PLACES[0]).key;
+let routeMode = 'normal';
+let viewMode  = 'plan';        // plan＝平面圖（預設）、iso＝立體圖
+const MODE_LABEL = {normal:'標準路線', lift:'優先搭電梯', indoor:'少走戶外'};
+
+const norm = s => s.trim().toLowerCase().replace(/\s+/g,'');
+function search(term, limit){
+  const t = norm(term);
+  if(!t) return [];
+  return PLACES.filter(p =>
+    norm(p.label).includes(t) || norm(p.name).includes(t) ||
+    (p.alias || []).some(a => norm(a).includes(t)) ||
+    norm(p.bldg).includes(t)).slice(0, limit || 7);
+}
+
+/* 同一組起訖與走法只算一次 */
+const cache = new Map();
+function routeFor(m){
+  const ck = fromKey + '|' + toKey + '|' + m;
+  if(cache.has(ck)) return cache.get(ck);
+  const f = byKey[fromKey], t = byKey[toKey];
+  if(!f || !t) return null;
+  const r = R.route({grid:f.grid, rects:f.rects, gate:!!f.gate}, t, m);
+  cache.set(ck, r);
+  return r;
+}
+function modeAvailable(m){
+  if(m === 'normal') return true;
+  const a = routeFor(m), b = routeFor('normal');
+  if(!a || !b) return false;
+  return JSON.stringify(a.legs.map(l=>l.path)) !== JSON.stringify(b.legs.map(l=>l.path));
+}
+
+const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-4.2-4.2"></path></svg>';
+const QUICK_TO = ['活動中心', '自主學習空間', '行政大樓六樓會議室'];
+
+function pickerHTML(id, no, title, curKey, chips, ph){
+  const cur = byKey[curKey];
+  return `
+    <div class="phead">
+      <span class="pno">${no}</span>
+      <span class="ptitle">${title}</span>
+      <span class="pnow">${cur ? cur.name : '尚未選擇'}</span>
+    </div>
+    <div class="pfield">${SEARCH_ICON}
+      <input type="text" inputmode="search" autocomplete="off"
+             id="${id}Input" placeholder="${ph}" aria-label="${title}">
+    </div>
+    <div id="${id}List"></div>
+    <div class="pchips">${chips.map(c =>
+      `<button type="button" data-key="${c.key}"
+        class="${c.key === curKey ? 'on' : ''}">${c.name}</button>`).join('')}</div>`;
+}
+
+function bindPicker(prefix, boxId, setKey){
+  const box   = document.getElementById(boxId);
+  const input = document.getElementById(prefix + 'Input');
+  const list  = document.getElementById(prefix + 'List');
+  if(!box || !input || !list) return;
+  box.querySelectorAll('[data-key]').forEach(b=>{
+    b.onclick = ()=>{ setKey(b.dataset.key); render(); };
+  });
+  input.addEventListener('input', ()=>{
+    const q = input.value;
+    if(!q.trim()){ list.innerHTML = ''; return; }
+    const hits = search(q);
+    if(!hits.length){
+      list.innerHTML = `<div class="plist"><div class="pnone">找不到「${q}」</div></div>`;
+      return;
+    }
+    list.innerHTML = `<ul class="plist">${hits.map((h,i)=>
+      `<li data-i="${i}"><span class="pn">${h.name}</span>
+        <span class="pl">${h.bldg}${h.floor ? ' ' + h.floor + 'F' : ''}</span></li>`).join('')}</ul>`;
+    list.querySelectorAll('li').forEach(li=>{
+      li.onclick = ()=>{ setKey(hits[+li.dataset.i].key); render(); };
+    });
+  });
+  input.addEventListener('keydown', e=>{
+    if(e.key === 'Enter' && !e.isComposing){
+      const hits = search(input.value);
+      if(hits.length){ setKey(hits[0].key); render(); }
+    }
+  });
+}
+
+function renderPickers(){
+  const fromChips = D.starts.map(s => ({key:s.key, name:s.name}));
+  const toChips = QUICK_TO.map(n=>{
+    const h = search(n, 1);
+    return h.length ? {key:h[0].key, name:h[0].name} : null;
+  }).filter(Boolean);
+  document.getElementById('pickFrom').innerHTML =
+    pickerHTML('from', 1, '出發點', fromKey, fromChips, '或直接輸入地點');
+  document.getElementById('pickTo').innerHTML =
+    pickerHTML('to', 2, '目的地', toKey, toChips, '輸入班級或地點，例如 303');
+  bindPicker('from', 'pickFrom', k => { fromKey = k; });
+  bindPicker('to',   'pickTo',   k => { toKey   = k; });
+}
+
+function renderModes(){
+  const btns = ['normal','lift','indoor'].map(m=>{
+    const ok = modeAvailable(m);
+    return `<button type="button" data-mode="${m}" ${ok ? '' : 'disabled'}
+      class="${routeMode === m ? 'on' : ''}">${MODE_LABEL[m]}</button>`;
+  }).join('');
+  const views = [['plan','平面圖'],['iso','立體圖']].map(([v,t])=>
+    `<button type="button" data-view="${v}" class="${viewMode === v ? 'on' : ''}">${t}</button>`).join('');
+  document.getElementById('viewctl').innerHTML =
+    `<div class="ctlrow"><span class="vl">走法</span>${btns}</div>
+     <div class="ctlrow"><span class="vl">顯示</span>${views}</div>`;
+  const vc = document.getElementById('viewctl');
+  vc.querySelectorAll('[data-mode]').forEach(b=>{
+    b.onclick = ()=>{ if(!b.disabled){ routeMode = b.dataset.mode; render(); } };
+  });
+  vc.querySelectorAll('[data-view]').forEach(b=>{
+    b.onclick = ()=>{ viewMode = b.dataset.view; render(); };
+  });
+}
+
+function render(){
+  renderPickers();
+  renderModes();
+  const f = byKey[fromKey], t = byKey[toKey];
+  const el = document.getElementById('result');
+  const Rt = routeFor(routeMode) || routeFor('normal');
+  if(!Rt){ el.innerHTML = '<p class="pnone">這兩個地點之間算不出路線。</p>'; return; }
+
+  const isNum = /^\d{3}$/.test(t.label);
+  const blocks = [];
+  blocks.push(`
+    <div class="dest">
+      ${isNum ? `<div class="dest-num">${t.label}</div>` : ''}
+      <div class="dest-txt">
+        <div class="dest-name">${t.name}</div>
+        <div class="dest-where">${t.bldg} ${t.floor} 樓　·　從 ${f.name} 出發</div>
+      </div>
+    </div>`);
+
+  if(Rt.same){
+    blocks.push(`<section class="vstep"><span class="stage-n">提醒</span>
+      <span class="vtext">你已經在 <b>${t.name}</b></span></section>`);
+  }
+  if(viewMode === 'iso'){
+    blocks.push(`
+      <section class="stage">
+        <div class="stage-head">
+          <span class="stage-n">路線</span>
+          <span class="stage-t">${f.name} → ${t.name}</span>
+          <button class="zoombtn" type="button" data-zoom>放大</button>
+        </div>
+        ${drawMassing(Rt.legs, t, Rt.via)}
+      </section>`);
+    if(Rt.legs.length > 1 && Rt.via){
+      const up = t.floor > (D.gridFloor[Rt.legs[0].grid] || 1);
+      const verb = Rt.via === '電梯' ? '搭電梯' : (up ? '上樓梯' : '下樓梯');
+      const icon = Rt.via === '電梯'
+        ? '<rect x="4.5" y="2.8" width="15" height="18.4" rx="1.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 6.4l-2.9 4h5.8z" fill="currentColor"/><path d="M12 17.6l-2.9-4h5.8z" fill="currentColor"/>'
+        : '<path d="M2.5 21h4.6v-4.4h4.6v-4.4h4.6V7.8h4.8" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>';
+      blocks.push(`
+        <section class="vstep">
+          <span class="stage-n">中途</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>
+          <span class="vtext">${verb}到 <b>${t.floor} 樓</b></span>
+        </section>`);
+    }
+    el.innerHTML = blocks.join('');
+    bindZoom(el);
+    return;
+  }
+
+  const many = Rt.legs.length > 1;
+  let no = 0;
+  Rt.legs.forEach((leg, i)=>{
+    const last = (i === Rt.legs.length - 1);
+    no++;
+    const tag = many ? ('STEP ' + no) : '路線';
+    let title;
+    if(!many)        title = `${f.name} → ${t.name}`;
+    else if(i === 0) title = `${f.name} → ${Rt.via || '樓梯'}`;
+    else             title = `${t.bldg} ${t.floor} 樓　→ ${t.name}`;
+    blocks.push(`
+      <section class="stage">
+        <div class="stage-head">
+          <span class="stage-n">${tag}</span>
+          <span class="stage-t">${title}</span>
+          <button class="zoombtn" type="button" data-zoom>放大</button>
+        </div>
+        ${drawMap(leg.grid, leg.path, last ? t : null)}
+      </section>`);
+    if(!last && Rt.via){
+      no++;
+      const up = t.floor > (D.gridFloor[Rt.legs[0].grid] || 1);
+      const verb = Rt.via === '電梯' ? '搭電梯' : (up ? '上樓梯' : '下樓梯');
+      const icon = Rt.via === '電梯'
+        ? '<rect x="4.5" y="2.8" width="15" height="18.4" rx="1.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 6.4l-2.9 4h5.8z" fill="currentColor"/><path d="M12 17.6l-2.9-4h5.8z" fill="currentColor"/>'
+        : '<path d="M2.5 21h4.6v-4.4h4.6v-4.4h4.6V7.8h4.8" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/>';
+      blocks.push(`
+        <section class="vstep">
+          <span class="stage-n">STEP ${no}</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">${icon}</svg>
+          <span class="vtext">${verb}到 <b>${t.floor} 樓</b></span>
+        </section>`);
+    }
+  });
+  el.innerHTML = blocks.join('');
+  bindZoom(el);
+}
+
+function bindZoom(el){
+  el.querySelectorAll('[data-zoom]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const stage = btn.closest('.stage'), box = stage.querySelector('.mapbox');
+      const on = box.classList.toggle('zoom');
+      btn.classList.toggle('on', on);
+      btn.textContent = on ? '縮小' : '放大';
+      if(on){
+        const hi = box.querySelector('.desthi');
+        if(hi){
+          const bb = hi.getBBox(), svg = box.querySelector('svg');
+          const k = svg.getBoundingClientRect().width / svg.viewBox.baseVal.width;
+          box.scrollLeft = (bb.x + bb.width/2) * k - box.clientWidth/2;
+          box.scrollTop  = (bb.y + bb.height/2) * k - box.clientHeight/2;
+        }
+      } else { box.scrollLeft = 0; box.scrollTop = 0; }
+    };
+  });
+}
+
+/* 深色／淺色：預設淺色，使用者選過就記在這台裝置 */
+const THEME_ICON = {
+  dark:  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.5 14.6A8.5 8.5 0 0 1 9.4 3.5a8.5 8.5 0 1 0 11.1 11.1z"/></svg>',
+  light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>'
+};
+function applyTheme(t){
+  const root = document.documentElement;
+  if(root && root.classList) root.classList.toggle('theme-dark', t === 'dark');
+  const btn = document.getElementById('themeBtn');
+  if(btn) btn.innerHTML = t === 'dark' ? THEME_ICON.light + '淺色' : THEME_ICON.dark + '深色';
+}
+let theme = 'light';
+try { if(localStorage.getItem('chshs-nav-theme') === 'dark') theme = 'dark'; } catch(e){}
+applyTheme(theme);
+{
+  const btn = document.getElementById('themeBtn');
+  if(btn) btn.onclick = () => {
+    theme = theme === 'dark' ? 'light' : 'dark';
+    applyTheme(theme);
+    try { localStorage.setItem('chshs-nav-theme', theme); } catch(e){}
+  };
+}
+
+render();
+</script>
+</body>
+</html>
