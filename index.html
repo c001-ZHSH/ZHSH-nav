@@ -451,8 +451,10 @@ function makeRouter(D){
     }
     return s;
   }
+  /* 原則上引導走樓梯：有電梯的地方旁邊也有樓梯，要不要搭電梯讓家長自己決定 */
+  const USE_LIFT = false;
   const vertsOf = gk => G[gk].blocks.filter(b =>
-      b.label && (b.label.indexOf('樓梯') >= 0 || b.label.indexOf('電梯') >= 0));
+      b.label && (b.label.indexOf('樓梯') >= 0 || (USE_LIFT && b.label.indexOf('電梯') >= 0)));
   const kindOfVert = b => b.label.indexOf('電梯') >= 0 ? '電梯' : '樓梯';
   const floorOfGrid = gk => D.gridFloor[gk] || 1;
 
@@ -1562,7 +1564,7 @@ let fromKey = (D.starts[0] && D.starts[0].key) || PLACES[0].key;
 let toKey   = (PLACES.find(p => p.label === '303') || PLACES[1] || PLACES[0]).key;
 let routeMode = 'normal';
 let viewMode  = 'plan';        // plan＝平面圖（預設）、iso＝立體圖
-const MODE_LABEL = {normal:'標準路線', lift:'優先搭電梯', indoor:'少走戶外'};
+const MODE_LABEL = {normal:'標準路線', indoor:'少走戶外'};
 
 const norm = s => s.trim().toLowerCase().replace(/\s+/g,'');
 function search(term, limit){
@@ -1659,7 +1661,7 @@ function renderPickers(){
 }
 
 function renderModes(){
-  const btns = ['normal','lift','indoor'].map(m=>{
+  const btns = ['normal','indoor'].map(m=>{
     const ok = modeAvailable(m);
     return `<button type="button" data-mode="${m}" ${ok ? '' : 'disabled'}
       class="${routeMode === m ? 'on' : ''}">${MODE_LABEL[m]}</button>`;
