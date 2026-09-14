@@ -95,11 +95,10 @@ body{background:var(--paper);color:var(--ink);
 .m-route.m-route-in{stroke:var(--route-in)}
 .m-route{fill:none;stroke:var(--route);stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
 .m-rise{stroke:var(--route);stroke-width:3.4;stroke-dasharray:4 3;stroke-linecap:round}
-/* 擋在目的地前面的大樓：面變半透明，但外框線保留，還看得出建築輪廓 */
+/* 擋在目的地或路線前面的大樓：面變半透明，框線也跟著變淡，只留淡淡的輪廓 */
 .m-ghost polygon{fill-opacity:.45}
-.m-ghost .m-side{stroke-width:.9}
-.m-ghost .m-roofline{stroke-width:1.2}
-.m-ghost .m-floorline{opacity:.55}
+.m-ghost .m-side,.m-ghost .m-roofline{stroke-opacity:.32}
+.m-ghost .m-floorline{opacity:.25}
 .m-road{fill:var(--m-road)}
 .m-road-edge{stroke:var(--m-road-line);stroke-width:1;opacity:.8}
 .m-road-mid{stroke:var(--m-road-line);stroke-width:1.2;stroke-dasharray:9 7}
