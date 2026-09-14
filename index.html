@@ -796,6 +796,34 @@ function routeRuns(gridKey, path){
 }
 
 /* 依路線裁切出 viewBox，並畫圖；縱長的樓層圖自動轉 90 度 */
+/* 場域名稱換行：括號連同裡面的字當成一塊，不會出現「(一」「)」拆在兩行；
+   半形括號與英數字只佔半個中文字寬 */
+const charW = ch => /[()\[\]]/.test(ch) ? 0.4 : /[\x00-\xff]/.test(ch) ? 0.6 : 1;
+const textW = t => [...t].reduce((n, ch) => n + charW(ch), 0);
+function fitWidth(t, maxW){
+  let out = '', n = 0;
+  for(const ch of t){ if(n + charW(ch) > maxW) break; out += ch; n += charW(ch); }
+  return out || [...t][0] || '';
+}
+function wrapLabel(label, maxW){
+  const rows = [];
+  label.split('\n').forEach(seg => {
+    const tokens = seg.match(/[(（][^()（）]{0,4}[)）]|[A-Za-z0-9]+|./gu) || [];
+    let line = '';
+    for(let tok of tokens){
+      if(textW(line + tok) <= maxW + 1e-6){ line += tok; continue; }
+      if(line){ rows.push(line); line = ''; }
+      while(textW(tok) > maxW + 1e-6){           // 單一塊就放不下，只好硬切
+        const part = fitWidth(tok, maxW);
+        rows.push(part); tok = tok.slice(part.length);
+      }
+      line = tok;
+    }
+    if(line) rows.push(line);
+  });
+  return rows;
+}
+
 function drawMap(gridKey, path, target, startPlace){
   const d = MAPS[gridKey];
   let r1 = Infinity, c1 = Infinity, r2 = -1, c2 = -1;
@@ -871,16 +899,13 @@ function drawMap(gridKey, path, target, startPlace){
     }
 
     /* 所有場域同一個字級，放不下就自動換行 */
-    const perLine = Math.max(1, Math.floor(w * 0.9 / FS));
+    const maxW = w * 0.9 / FS;                  // 一行可放幾個中文字寬
     const maxLines = Math.max(1, Math.floor(h * 0.9 / (FS * 1.16)));
-    const rows = [];
-    b.label.split('\n').forEach(seg=>{
-      for(let i = 0; i < seg.length; i += perLine) rows.push(seg.slice(i, i + perLine));
-    });
     if(FS > w * 0.9) return;                    // 一個字都放不下就別畫
+    const rows = wrapLabel(b.label, maxW);
     const shown = rows.length > maxLines
       ? rows.slice(0, maxLines - 1).concat(
-          rows[maxLines-1].slice(0, Math.max(1, perLine - 1)) + '\u2026')
+          fitWidth(rows[maxLines-1], maxW - 1) + '\u2026')
       : rows;
     shown.forEach((ln, i)=>{
       parts.push(`<text x="${(x+w/2).toFixed(1)}"
@@ -1425,7 +1450,7 @@ function drawMassing(legs, target, vinfo, fromPlace){
     return {b: v, kind: v.kind, zFrom: za, zTo: zb, zLo: Math.min(za, zb), zHi: Math.max(za, zb), bldg: v.bldg};
   }).filter(Boolean);
 
-  /* 擋住目的地（或樓梯、電梯）的大樓變半透明：螢幕上重疊、而且位置在它前面 */
+  /* 擋住目的地、樓梯間或路線的大樓變半透明：螢幕上重疊、而且位置在它前面 */
   const ghost = new Set();
   const focus = [];
   if(target && target.rects && target.rects.length){
@@ -1446,6 +1471,28 @@ function drawMassing(legs, target, vinfo, fromPlace){
         if(!f.front(rd, cd)) return;
         if(boxPolys.some(q => polysOverlap(q, f.poly))) ghost.add(f.b);
       });
+    });
+  }
+  /* 路線被擋住時也一樣：把路線切成每段最多 3 格的小線段，逐段檢查擋在前面的大樓
+     （路線所在的那棟大樓不算，樓上的路線本來就在大樓裡面） */
+  {
+    const Kc = (r, c) => (r << 8) | c;
+    const bldgAt = (r, c) => Object.keys(R.BUILD).find(n => R.BUILD[n].has(Kc(r, c)));
+    legs.forEach(leg => {
+      const z = (D.gridFloor[leg.grid] || 1) - 1, p = leg.path;
+      for(let i = 0; i + 1 < p.length; i += 3){
+        const a = p[i], b = p[Math.min(i + 3, p.length - 1)];
+        const [x1, y1] = P(a[0] + 0.5, a[1] + 0.5, z), [x2, y2] = P(b[0] + 0.5, b[1] + 0.5, z);
+        const len = Math.hypot(x2 - x1, y2 - y1) || 1, nx = -(y2 - y1) / len * 2, ny = (x2 - x1) / len * 2;
+        const quad = [[x1 + nx, y1 + ny], [x2 + nx, y2 + ny], [x2 - nx, y2 - ny], [x1 - nx, y1 - ny]];
+        const rd = (a[0] + b[0]) / 2 + 0.5, cd = (a[1] + b[1]) / 2 + 0.5;
+        const own = new Set([bldgAt(a[0], a[1]), bldgAt(b[0], b[1])]);
+        faces.forEach(f => {
+          if(!f.poly || own.has(f.b) || ghost.has(f.b)) return;
+          if(!f.front(rd, cd)) return;
+          if(polysOverlap(quad, f.poly)) ghost.add(f.b);
+        });
+      }
     });
   }
 
