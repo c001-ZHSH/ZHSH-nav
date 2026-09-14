@@ -561,13 +561,25 @@ function makeRouter(D){
   }
 
   /* 指定路徑：起點層 →（樓梯）→ 指定樓層，只在指定的幾棟樓裡走到指定的格子 → 之後照一般方式到目的地 */
-  function viaRoute(from, to, mode, rule){
+  function viaRoute(from, to, mode, rule, useWaypoint){
+    /* 目的地就在指定樓層：不用繞進樓梯口，照樣只走指定的幾棟樓，直接走到教室；走不到才退回經過樓梯口 */
+    if(!useWaypoint && to.grid === rule.viaGrid){
+      const direct = viaRoute(from, to, mode, rule, 'direct');
+      if(direct) return direct;
+      return viaRoute(from, to, mode, rule, true);
+    }
+    const directMode = useWaypoint === 'direct';
     const avoid = mode === 'indoor';
     const A = from.grid, M = rule.viaGrid;
     const banA = banFor(A, from, to), banM = banFor(M, from, to);
     const corridor = new Set();
     rule.corridor.forEach(n => BUILD[n] && BUILD[n].forEach(k => corridor.add(k)));
-    const goalsM = new Set(rule.viaCells.map(([r, c]) => K(r, c)).filter(k => !G[M].occ.has(k)));
+    const goalsM = directMode
+      ? endCells(M, to.rects, null)
+      : new Set(rule.viaCells.map(([r, c]) => K(r, c)).filter(k => !G[M].occ.has(k)));
+    if(directMode) to.rects.forEach(([r1, c1, r2, c2]) => {       // 目的地那一圈也要能走到
+      for(let r = r1 - 1; r <= r2 + 1; r++) for(let c = c1 - 1; c <= c2 + 1; c++) corridor.add(K(r, c));
+    });
     let head = null;
     if(A === M){
       const p = dijkstra(M, startCells(from), goalsM, corridor, avoid, banM);
@@ -590,6 +602,10 @@ function makeRouter(D){
       }
     }
     if(!head) return null;
+    if(directMode){
+      const legs = head.legs.concat([{grid: M, path: head.pM}]);
+      return {legs, via: head.verts.length ? head.verts[0].kind : null, vias: head.verts.map(v => v.kind), verts: head.verts, rule: rule.note};
+    }
     const end = head.pM[head.pM.length - 1];
     const rest = route({grid: M, rects: [[end[0], end[1], end[0], end[1]]], cells: [end], gate: false}, to, mode);
     if(!rest) return null;
