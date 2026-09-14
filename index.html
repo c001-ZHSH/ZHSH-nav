@@ -1018,12 +1018,13 @@ function drawMap(gridKey, path, target, startPlace){
 
   // 破折虛線（可通過的區隔）和點虛線（入口）只給程式判斷，畫出來反而像牆
 
-  routeRuns(gridKey, path).forEach(run => {
-    const pts = run.cells.map(([r,c])=>mid(r,c).map(v=>v.toFixed(1)).join(',')).join(' ');
-    parts.push(`<polyline points="${pts}" fill="none" stroke="${run.indoor ? 'var(--route-in)' : 'var(--route)'}"
+  /* 平面圖不會有東西擋住路線，室內外都用同一個顏色（淺色只用在立體圖） */
+  if(path.length > 1){
+    const pts = path.map(([r,c])=>mid(r,c).map(v=>v.toFixed(1)).join(',')).join(' ');
+    parts.push(`<polyline points="${pts}" fill="none" stroke="var(--route)"
       stroke-width="${Math.max(3, CELL*0.42).toFixed(1)}"
       stroke-linecap="round" stroke-linejoin="round" class="rline"></polyline>`);
-  });
+  }
   const rad = Math.max(4, CELL*0.42);
   const dot = ([r,c], fill, ring) => {
     const [x,y] = mid(r,c);
