@@ -1375,6 +1375,47 @@ function drawVertical(v, P, ZS){
   return `<g class="vshaft">${parts.join('')}</g>`;
 }
 
+/* 立體圖的前後順序：螢幕上重疊的兩個面，看 3D 位置誰在後面（北邊、西邊、下面的先畫），
+   再做拓撲排序；長條的牆或屋頂用中心點排序會出錯，這樣才不會遠的蓋到近的 */
+function depthSort(faces){
+  const solid = faces.filter(f => f.box && f.poly), rest = faces.filter(f => !(f.box && f.poly));
+  const n = solid.length, eps = 1e-6;
+  const bb = solid.map(f => { const xs = f.poly.map(p => p[0]), ys = f.poly.map(p => p[1]);
+    return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; });
+  const after = Array.from({length: n}, () => []), indeg = new Array(n).fill(0);
+  const behind = (A, B) => {
+    if(A.r1 <= B.r0 + eps) return true;  if(B.r1 <= A.r0 + eps) return false;
+    if(A.c1 <= B.c0 + eps) return true;  if(B.c1 <= A.c0 + eps) return false;
+    if(A.z1 <= B.z0 + eps) return true;  if(B.z1 <= A.z0 + eps) return false;
+    return null;
+  };
+  for(let i = 0; i < n; i++) for(let j = i + 1; j < n; j++){
+    if(bb[i][2] <= bb[j][0] + 0.01 || bb[j][2] <= bb[i][0] + 0.01 || bb[i][3] <= bb[j][1] + 0.01 || bb[j][3] <= bb[i][1] + 0.01) continue;
+    if(!polysOverlap(solid[i].poly, solid[j].poly)) continue;
+    let ib = behind(solid[i].box, solid[j].box);
+    if(ib === null) ib = solid[i].d < solid[j].d;
+    if(ib){ after[i].push(j); indeg[j]++; } else { after[j].push(i); indeg[i]++; }
+  }
+  const out = [], ready = [];
+  for(let i = 0; i < n; i++) if(!indeg[i]) ready.push(i);
+  const done = new Array(n).fill(false);
+  while(out.length < n){
+    if(!ready.length){                         // 萬一有循環，挑剩下 d 最小的先畫
+      let k = -1; for(let i = 0; i < n; i++) if(!done[i] && (k < 0 || solid[i].d < solid[k].d)) k = i;
+      ready.push(k); indeg[k] = 0;
+    }
+    let bi = 0; for(let t = 1; t < ready.length; t++) if(solid[ready[t]].d < solid[ready[bi]].d) bi = t;
+    const i = ready.splice(bi, 1)[0];
+    if(done[i]) continue;
+    done[i] = true; out.push(solid[i]);
+    for(const j of after[i]) if(!done[j] && --indeg[j] === 0) ready.push(j);
+  }
+  rest.sort((a, b) => a.d - b.d || a.z - b.z);
+  faces.length = 0;
+  out.forEach(f => faces.push(f));
+  rest.forEach(f => faces.push(f));
+}
+
 function polysOverlap(A, B){
   for(const poly of [A, B]){
     for(let i = 0; i < poly.length; i++){
@@ -1401,6 +1442,21 @@ function drawMassing(legs, target, vinfo, fromPlace){
   /* 地面 */
   const ground = [[R0,C0],[R0,C1+1],[R1+1,C1+1],[R1+1,C0]].map(([r,c])=>P(r,c,0));
 
+  /* 每一格被哪棟樓佔、有多高：兩棟樓緊貼時，接縫處被隔壁擋住的牆就不畫 */
+  const HAT = new Map();
+  for(const [name, runs] of Object.entries(D.build)){
+    const hh = tops[name] || 1;
+    runs.forEach(([r,a,b]) => { for(let c=a;c<=b;c++){ const k = r*256+c; HAT.set(k, Math.max(HAT.get(k) || 0, hh)); } });
+  }
+  const floorLines = (name, z0, H, p1, p2) => {                // 牆面上的樓層線（只畫露出來的那一段）
+    let lines = '';
+    for(let f = Math.floor(z0) + 1; f < H && !BUILD_HEIGHT[name]; f++){
+      const [x1,y1] = P(...p1, f), [x2,y2] = P(...p2, f);
+      lines += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="m-floorline"></line>`;
+    }
+    return lines;
+  };
+
   /* 每棟建築：依 RLE 列區間擠出，只畫朝觀察者的南面、東面與頂面 */
   for(const [name, runs] of Object.entries(D.build)){
     const H = tops[name] || 1;
@@ -1412,76 +1468,73 @@ function drawMassing(legs, target, vinfo, fromPlace){
     const pts = arr => arr.map(p=>p.map(v=>v.toFixed(1)).join(',')).join(' ');
 
     /* 頂面：每列一塊但不描邊，外輪廓另外畫一次，屋頂才不會有條紋 */
+    const segPath = (list) => list.map(([p1, p2]) => {
+      const [x1, y1] = P(...p1, H), [x2, y2] = P(...p2, H);
+      return 'M' + x1.toFixed(1) + ' ' + y1.toFixed(1) + 'L' + x2.toFixed(1) + ' ' + y2.toFixed(1);
+    }).join('');
     runs.forEach(([r,a,b])=>{
       const tp = [[r,a],[r,b+1],[r+1,b+1],[r+1,a]].map(([rr,cc])=>P(rr,cc,H));
-      faces.push({d: r + (a+b)/2 + 1.0, z: H, b: name, poly: tp, front: (rd,cd) => r + 0.5 > rd, svg:
-        `<polygon points="${pts(tp)}"
-          class="m-top m-${tone}"></polygon>`});
+      /* 這一列的外輪廓：北邊、南邊沒有同棟樓的格子才畫，左右兩端一定是邊界 */
+      const segs = [[[r, a], [r+1, a]], [[r, b+1], [r+1, b+1]]];
+      for(const [dr, rowLine] of [[-1, r], [1, r+1]]){
+        let s0 = null;
+        for(let c = a; c <= b + 1; c++){
+          const open = c <= b && !has(r + dr, c);
+          if(open && s0 === null) s0 = c;
+          if(!open && s0 !== null){ segs.push([[rowLine, s0], [rowLine, c]]); s0 = null; }
+        }
+      }
+      faces.push({d: r + (a+b)/2 + 1.0, z: H, b: name, poly: tp, front: (rd,cd) => r + 0.5 > rd,
+        box: {r0: r, r1: r+1, c0: a, c1: b+1, z0: H, z1: H}, svg:
+        `<polygon points="${pts(tp)}" class="m-top m-${tone}"></polygon><path d="${segPath(segs)}" class="m-roofline"></path>`});
     });
 
-    /* 南面：沿欄方向把連續格子合成一面 */
+    /* 南面：沿欄方向把連續、露出高度相同的格子合成一面（隔壁樓比較矮時只畫高出來的部分） */
     runs.forEach(([r,a,b])=>{
-      let s = null;
+      const low = c => has(r+1, c) ? H : Math.min(H, HAT.get((r+1)*256+c) || 0);   // 前面那格擋到多高
+      let s = null, z0 = 0;
       for(let c = a; c <= b + 1; c++){
-        const open = c <= b && !has(r+1, c);
-        if(open && s === null) s = c;
-        if((!open || c === b+1) && s !== null){
-          const e = open ? c : c - 1;
-          const sp = [[r+1,s,0],[r+1,e+1,0],[r+1,e+1,H],[r+1,s,H]].map(([rr,cc,zz])=>P(rr,cc,zz));
-          let lines = '';
-          for(let f = 1; f < H && !BUILD_HEIGHT[name]; f++){
-            const [x1,y1] = P(r+1,s,f), [x2,y2] = P(r+1,e+1,f);
-            lines += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="m-floorline"></line>`;
-          }
-          faces.push({d: r + 1 + (s+e)/2 + 0.8, z: 0, b: name, poly: sp, front: (rd,cd) => r + 1 > rd, svg:
-            `<polygon points="${pts(sp)}" class="m-side m-south m-${tone}"></polygon>${lines}`});
+        const lz = c <= b ? low(c) : H;
+        const open = lz < H;
+        if(s !== null && (!open || lz !== z0)){
+          const e = c - 1;
+          const sp = [[r+1,s,z0],[r+1,e+1,z0],[r+1,e+1,H],[r+1,s,H]].map(([rr,cc,zz])=>P(rr,cc,zz));
+          faces.push({d: r + 1 + (s+e)/2 + 0.8, z: z0, b: name, poly: sp, front: (rd,cd) => r + 1 > rd,
+            box: {r0: r+1, r1: r+1, c0: s, c1: e+1, z0, z1: H}, svg:
+            `<polygon points="${pts(sp)}" class="m-side m-south m-${tone}"></polygon>${floorLines(name, z0, H, [r+1,s], [r+1,e+1])}`});
           s = null;
         }
+        if(open && s === null){ s = c; z0 = lz; }
       }
     });
 
-    /* 東面：先找出所有外露位置，再沿列方向把連續的合成一面 */
+    /* 東面：先找出所有外露位置，再沿列方向把連續、露出高度相同的合成一面 */
     const eastCols = new Map();
     runs.forEach(([r,a,b])=>{
-      for(let c = a; c <= b; c++) if(!has(r, c+1)){
+      for(let c = a; c <= b; c++){
+        if(has(r, c+1)) continue;
+        const lz = Math.min(H, HAT.get(r*256+c+1) || 0);
+        if(lz >= H) continue;                                   // 隔壁樓一樣高或更高，整面被擋住
         if(!eastCols.has(c+1)) eastCols.set(c+1, []);
-        eastCols.get(c+1).push(r);
+        eastCols.get(c+1).push([r, lz]);
       }
     });
     eastCols.forEach((rows, cc)=>{
-      rows.sort((x,y)=>x-y);
-      let s = rows[0], p = rows[0];
-      const flush = (r1, r2)=>{
-        const ep = [[r1,cc,0],[r2+1,cc,0],[r2+1,cc,H],[r1,cc,H]].map(([rr,c2,zz])=>P(rr,c2,zz));
-        let lines = '';
-        for(let f = 1; f < H && !BUILD_HEIGHT[name]; f++){
-          const [x1,y1] = P(r1,cc,f), [x2,y2] = P(r2+1,cc,f);
-          lines += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" class="m-floorline"></line>`;
-        }
-        faces.push({d: (r1+r2)/2 + cc + 0.9, z: 0, b: name, poly: ep, front: (rd,cd) => cc > cd, svg:
-          `<polygon points="${pts(ep)}" class="m-side m-east m-${tone}"></polygon>${lines}`});
+      rows.sort((x,y)=>x[0]-y[0]);
+      const flush = (r1, r2, z0)=>{
+        const ep = [[r1,cc,z0],[r2+1,cc,z0],[r2+1,cc,H],[r1,cc,H]].map(([rr,c2,zz])=>P(rr,c2,zz));
+        faces.push({d: (r1+r2)/2 + cc + 0.9, z: z0, b: name, poly: ep, front: (rd,cd) => cc > cd,
+          box: {r0: r1, r1: r2+1, c0: cc, c1: cc, z0, z1: H}, svg:
+          `<polygon points="${pts(ep)}" class="m-side m-east m-${tone}"></polygon>${floorLines(name, z0, H, [r1,cc], [r2+1,cc])}`});
       };
+      let [s, z0] = rows[0], p = s;
       for(let i = 1; i < rows.length; i++){
-        if(rows[i] === p + 1){ p = rows[i]; continue; }
-        flush(s, p); s = p = rows[i];
+        const [r, lz] = rows[i];
+        if(r === p + 1 && lz === z0){ p = r; continue; }
+        flush(s, p, z0); s = p = r; z0 = lz;
       }
-      flush(s, p);
+      flush(s, p, z0);
     });
-
-    /* 屋頂外輪廓 */
-    const edge = [];
-    set.forEach(k=>{
-      const r = k >> 8, c = k & 255;
-      if(!has(r-1,c)) edge.push([P(r,c,H),   P(r,c+1,H)]);
-      if(!has(r+1,c)) edge.push([P(r+1,c,H), P(r+1,c+1,H)]);
-      if(!has(r,c-1)) edge.push([P(r,c,H),   P(r+1,c,H)]);
-      if(!has(r,c+1)) edge.push([P(r,c+1,H), P(r+1,c+1,H)]);
-    });
-    let maxD = 0;
-    runs.forEach(([r,a,b]) => { maxD = Math.max(maxD, r + b); });
-    faces.push({d: maxD + 2, z: H, b: name, svg:
-      `<path d="${edge.map(([p1,p2])=>'M'+p1[0].toFixed(1)+' '+p1[1].toFixed(1)+'L'+p2[0].toFixed(1)+' '+p2[1].toFixed(1)).join('')}"
-        class="m-roofline"></path>`});
 
     /* 建築名稱：標在屋頂中心 */
     let sr=0, sc=0, n=0;
@@ -1510,7 +1563,12 @@ function drawMassing(legs, target, vinfo, fromPlace){
   if(gate){
     const {r1, c1, r2, c2} = gate;
     groundExtra.push(`<polygon points="${fx([[r1,c1],[r1,c2+1],[r2+1,c2+1],[r2+1,c1]].map(([r,c]) => P(r,c,0)))}" class="m-plaza"></polygon>`);
-    const cube = (ra, rb, ca, cb, za, zb, d) => faces.push({d, z: zb, svg:
+    const cube = (ra, rb, ca, cb, za, zb, d) => faces.push({d, z: zb,
+      box: {r0: ra, r1: rb, c0: ca, c1: cb, z0: za, z1: zb},
+      poly: (() => { const q = []; for(const r of [ra, rb]) for(const c of [ca, cb]) for(const z of [za, zb]) q.push(P(r, c, z));
+        const xs = q.map(p => p[0]), ys = q.map(p => p[1]);
+        return [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)], [Math.min(...xs), Math.max(...ys)]]; })(),
+      svg:
       `<polygon points="${fx([[ra,cb,za],[rb,cb,za],[rb,cb,zb],[ra,cb,zb]].map(q => P(...q)))}" class="m-side m-east m-gate"></polygon>` +
       `<polygon points="${fx([[rb,ca,za],[rb,cb,za],[rb,cb,zb],[rb,ca,zb]].map(q => P(...q)))}" class="m-side m-south m-gate"></polygon>` +
       `<polygon points="${fx([[ra,ca,zb],[ra,cb,zb],[rb,cb,zb],[rb,ca,zb]].map(q => P(...q)))}" class="m-side m-top m-gate"></polygon>`});
@@ -1524,7 +1582,7 @@ function drawMassing(legs, target, vinfo, fromPlace){
       `<text x="${tx.toFixed(1)}" y="${(ty - 6).toFixed(1)}" text-anchor="middle" class="m-name">校門口</text>`});
   }
 
-  faces.sort((a,b) => a.d - b.d || a.z - b.z);
+  depthSort(faces);
 
   /* 這次路線用到的樓梯／電梯（路線計算時已經記下是哪一座），每次上下樓一座 */
   const vertList = (vinfo || []).map((v, i) => {
@@ -1550,7 +1608,7 @@ function drawMassing(legs, target, vinfo, fromPlace){
         [[r1,c2+1,zLo],[r2+1,c2+1,zLo],[r2+1,c2+1,zUp],[r1,c2+1,zUp]]
       ].map(q => q.map(([r,c,z]) => P(r,c,z)));
       faces.forEach(f=>{
-        if(!f.poly || f.b === own || ghost.has(f.b)) return;
+        if(!f.poly || !f.front || f.b === own || ghost.has(f.b)) return;
         if(!f.front(rd, cd)) return;
         if(boxPolys.some(q => polysOverlap(q, f.poly))) ghost.add(f.b);
       });
@@ -1571,7 +1629,7 @@ function drawMassing(legs, target, vinfo, fromPlace){
         const rd = (a[0] + b[0]) / 2 + 0.5, cd = (a[1] + b[1]) / 2 + 0.5;
         const own = new Set([bldgAt(a[0], a[1]), bldgAt(b[0], b[1])]);
         faces.forEach(f => {
-          if(!f.poly || own.has(f.b) || ghost.has(f.b)) return;
+          if(!f.poly || !f.front || own.has(f.b) || ghost.has(f.b)) return;
           if(!f.front(rd, cd)) return;
           if(polysOverlap(quad, f.poly)) ghost.add(f.b);
         });
