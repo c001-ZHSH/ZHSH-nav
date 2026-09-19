@@ -170,6 +170,8 @@ body{background:var(--paper);color:var(--ink);
   letter-spacing:.12em;color:var(--route)}
 .stage-t{font-size:12.5px;font-weight:700;flex:1 1 auto;min-width:0;text-align:right;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stage-t .t-where{display:block;font-size:11.5px;font-weight:700;color:var(--mark);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis}
 .mapbox{display:flex;justify-content:center;background:var(--field);
   overflow:auto;-webkit-overflow-scrolling:touch}
 .mapbox svg{max-width:100%;max-height:56vh;width:auto;height:auto}
@@ -1902,6 +1904,10 @@ function vstepHTML(Rt, i, label){
         </section>`;
 }
 
+/* 標題下方的目的地位置：「中和樓 3 樓」；活動中心、圖書館這類整棟就是目的地的不重複寫 */
+const whereLine = t => (t && t.bldg && t.bldg !== t.name)
+  ? `<span class="t-where">${t.bldg} ${t.floor} 樓</span>` : '';
+
 function render(){
   renderPickers();
   renderModes();
@@ -1935,7 +1941,7 @@ function render(){
       <section class="stage">
         <div class="stage-head">
           <span class="stage-n">路線</span>
-          <span class="stage-t">${f.name} → ${t.name}</span>
+          <span class="stage-t">${f.name} → ${t.name}${whereLine(t)}</span>
         </div>
         ${drawMassing(Rt.legs, t, Rt.verts, (f.gate || Rt.same) ? null : f)}
       </section>`);
@@ -1953,13 +1959,13 @@ function render(){
     no++;
     const tag = many ? ('STEP ' + no) : '路線';
     let title;
-    if(!many)        title = `${f.name} → ${t.name}`;
+    if(!many)        title = `${f.name} → ${t.name}${whereLine(t)}`;
     else if(!last){
       const v = Rt.verts && Rt.verts[i], kind = (Rt.vias && Rt.vias[i]) || Rt.via || '樓梯';
       const here = D.gridFloor[leg.grid] || 1;
       title = i === 0 ? `${f.name} → ${kind}` : `${here} 樓　→ ${v && v.bldg ? v.bldg : ''}${kind}`;
     }
-    else             title = `${t.bldg} ${t.floor} 樓　→ ${t.name}`;
+    else             title = `→ ${t.name}${whereLine(t)}`;      // 下方那行已經寫了大樓與樓層
     blocks.push(`
       <section class="stage">
         <div class="stage-head">
